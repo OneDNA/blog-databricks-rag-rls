@@ -1,0 +1,22 @@
+# Editorial process — internal, not part of the article
+.style/
+
+# PDF output and its build intermediates. Regenerate with the markdown-to-pdf skill —
+# a stale PDF beside an edited article is worse than no PDF.
+.pdfbuild/
+*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local preview exports — these embed absolute paths from the machine that made them
+README.html
+README.nl.html
+
+# OS
+Thumbs.db
+.DS_Store

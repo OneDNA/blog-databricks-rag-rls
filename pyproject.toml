@@ -1,0 +1,27 @@
+[project]
+name = "databricks-rag-row-level-security"
+version = "1.0.0"
+description = "Worked examples for row-level security over Databricks AI Search in a RAG pipeline"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Sven Relijveld", email = "info@onedna.nl" }]
+keywords = ["databricks", "unity-catalog", "vector-search", "rag", "row-level-security", "abac"]
+dependencies = []
+
+[project.optional-dependencies]
+# Only needed for the --live modes. Every example runs offline without these.
+live = ["databricks-sdk>=0.30.0", "databricks-ai-search"]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://onedna.nl"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "anti_pattern: shows the name-derived ACL genuinely fails; see the article, section 4",
+]
+
+[tool.ruff]
+line-length = 100
