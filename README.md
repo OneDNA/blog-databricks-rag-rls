@@ -52,8 +52,7 @@ python ~/.claude/skills/markdown-to-pdf/scripts/build_pdf.py article/README.md \
 
 ## About
 
-Written by Sven Relijveld at [OneDNA](https://onedna.nl). Kennisdelen zit in ons DNA, and that
-includes the parts that did not work.
+Written by Sven Relijveld at [OneDNA](https://onedna.nl). Sharing knowledge is in our DNA.
 
 Measured in a Databricks sandbox during August and September 2026. Identifiers, group names and
 project data are generalised for publication. Licensed [MIT](LICENSE) — lift anything here into

@@ -497,6 +497,6 @@ Catalog en per-gebruiker toegangscontrole op Databricks. Neem contact op via
 
 ---
 
-<sub>Geschreven door Sven Relijveld bij [OneDNA](https://onedna.nl). Kennisdelen zit in ons DNA, en
-dat geldt ook voor de dingen die niet werkten. Gemeten in een Databricks-sandbox in augustus en
-september 2026; identifiers en groepsnamen zijn voor publicatie gegeneraliseerd.</sub>
+<sub>Geschreven door Sven Relijveld bij [OneDNA](https://onedna.nl). Kennisdelen zit in ons DNA.
+Gemeten in een Databricks-sandbox in augustus en september 2026; identifiers en groepsnamen zijn
+voor publicatie gegeneraliseerd.</sub>
