@@ -126,10 +126,9 @@ governed tables. Both run on the caller's credentials.
 
 ![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
 
-What differs is who enforces. On the prose branch it is our declared grants, so provenance
-means "one of your groups admitted this passage". On the data branch it is Unity Catalog, so
-provenance means "Unity Catalog evaluated you", with the generated SQL and a statement id as
-evidence.
+What differs is who enforces. On the prose branch it is our declared grants, so the reason you got
+a passage is "one of your groups allowed it". On the data branch it is Unity Catalog, so the reason
+is "Unity Catalog checked you", with the generated SQL and a statement id as evidence.
 
 > [!WARNING]
 > On a non-interactive path the service principal is the whole of your access control: every human

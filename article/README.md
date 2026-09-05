@@ -165,7 +165,7 @@ rule that only holds on one backend is not much of a rule.
 If the platform will not enforce it, the application must. That sounds like a small amount of
 code, and it is: the ACL resolves per request from the caller's own token, the groups come from
 SCIM using their credentials so nobody can claim a membership they do not have, and the result is
-passed explicitly into every retrieval rather than picked up from ambient state. Perhaps forty
+passed explicitly into every retrieval rather than read from somewhere else. Perhaps forty
 lines.
 
 Four decisions in that layer shaped the rest:
@@ -271,7 +271,7 @@ events in `system.access.audit`. Authorisation data is exactly the kind of data 
 answer questions about.
 
 The condition is which identity reads it. Read the mapping under the caller's own token and the
-caller needs `SELECT` on it — so any user can enumerate every group's entitlements, which is a
+caller needs `SELECT` on it — so any user can read every group's entitlements, which is a
 disclosure about the security model itself and strictly worse than the config value it replaced. So
 the request path uses two identities deliberately: the caller's token resolves the caller's own
 group membership, and the endpoint's service principal reads the mapping. Cache it in process with
@@ -407,8 +407,8 @@ between them. Questions about decisions and rationale go to similarity search ov
 about counts and totals go to a Genie space, which generates SQL against governed tables. Both run
 on the caller's credentials, so the identity story is the same on either branch and the model cannot
 route its way to a privileged path. What differs is who enforces. On the prose branch it is our
-declared grants table, so provenance means "one of your groups admitted this passage". On the data
-branch it is Unity Catalog, so provenance means "Unity Catalog evaluated you", with the generated
+declared grants table, so the reason you got a passage is "one of your groups allowed it". On the
+data branch it is Unity Catalog, so the reason is "Unity Catalog checked you", with the generated
 SQL and a statement id as evidence.
 
 We tested whether the caller's identity holds across the hops into Genie, and it does on every path

@@ -129,10 +129,10 @@ aanroeper.
 
 ![Row-level security in een Databricks RAG-pipeline](../../diagrams/rendered/architecture.png)
 
-Wat verschilt, is wie handhaaft. Op de prozatak is dat onze gedeclareerde grants, en herkomst
-betekent daar "een van jouw groepen liet deze passage toe". Op de datatak is het Unity Catalog, en
-herkomst betekent "Unity Catalog heeft jou geëvalueerd", met de gegenereerde SQL en een statement-id
-als bewijs.
+Wat verschilt, is wie handhaaft. Op de prozatak is dat onze gedeclareerde grants, en de reden dat je
+een passage krijgt is "een van jouw groepen liet hem toe". Op de datatak is het Unity Catalog, en de
+reden is "Unity Catalog heeft jou gecontroleerd", met de gegenereerde SQL en een statement-id als
+bewijs.
 
 > [!WARNING]
 > Op een niet-interactief pad ís de service principal je volledige toegangscontrole: iedere mens die

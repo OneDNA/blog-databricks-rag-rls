@@ -424,8 +424,8 @@ search over proza; vragen over aantallen en totalen gaan naar een Genie-space, d
 tegen beheerde tabellen. Beide draaien op de credentials van de aanroeper, dus het
 identiteitsverhaal is op beide takken hetzelfde en het model kan zich geen weg banen naar een
 bevoorrecht pad. Wat verschilt, is wie handhaaft. Op de prozatak is dat onze gedeclareerde
-grants-tabel, en herkomst betekent daar "een van jouw groepen liet deze passage toe". Op de datatak
-is het Unity Catalog zelf, en herkomst betekent "Unity Catalog heeft jou geëvalueerd", met de
+grants-tabel, en de reden dat je een passage krijgt is daar "een van jouw groepen liet hem toe". Op
+de datatak is het Unity Catalog zelf, en de reden is "Unity Catalog heeft jou gecontroleerd", met de
 gegenereerde SQL en een statement-id als bewijs.
 
 We hebben getest of de identiteit van de aanroeper standhoudt over de hops naar Genie, en dat doet
