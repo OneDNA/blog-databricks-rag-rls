@@ -17,8 +17,8 @@ still in preview.
 
 | | Short · ~6 min | Long · ~21 min |
 | --- | --- | --- |
-| 🇬🇧 | **[Read it in English](article/short/README.md)** | [The long version](article/README.md) |
-| 🇳🇱 | **[Lees het in het Nederlands](article/short/README.nl.md)** | [De lange versie](article/README.nl.md) |
+| 🇬🇧 | **[Read it in English](article/short/row-level-security.md)** | [The long version](article/row-level-security.md) |
+| 🇳🇱 | **[Lees het in het Nederlands](article/short/row-level-security.nl.md)** | [De lange versie](article/row-level-security.nl.md) |
 
 ## What else is here
 
@@ -50,8 +50,8 @@ The PDFs are not committed, because a stale PDF beside an edited article is wors
 Build either language with the [`markdown-to-pdf`](https://github.com/OneDNA/claude-skills) skill:
 
 ```bash
-python ~/.claude/skills/markdown-to-pdf/scripts/build_pdf.py article/README.md \
-  -o row-level-security-databricks-rag.pdf
+python ~/.claude/skills/markdown-to-pdf/scripts/build_pdf.py article/row-level-security.md \
+  -o row-level-security.pdf
 ```
 
 ## About

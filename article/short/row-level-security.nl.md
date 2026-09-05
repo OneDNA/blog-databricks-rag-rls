@@ -2,7 +2,7 @@
 
 *Sven Relijveld, OneDNA, september 2026*
 
-**📖 [Lees de lange versie](../README.nl.md)** · **🇬🇧 [Read this article in English](README.md)**
+**📖 [Lees de lange versie](../row-level-security.nl.md)** · **🇬🇧 [Read this article in English](row-level-security.md)**
 
 ---
 
@@ -157,7 +157,7 @@ agent zich bij elke stap gedraagt. En bouw grondige validaties in je testcyclus.
 
 ---
 
-De [lange versie](../README.nl.md) bevat de metingen, de tabel met token-hops voor OBO, de Unity
+De [lange versie](../row-level-security.nl.md) bevat de metingen, de tabel met token-hops voor OBO, de Unity
 Catalog-ontwerpvragen die we hebben uitgezocht, en de platformfeatures die nog in preview zijn. De
 map [`examples/`](../../examples/) bevat uitvoerbare demonstraties van elke fout hierboven.
 

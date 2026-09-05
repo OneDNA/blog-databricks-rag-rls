@@ -2,7 +2,7 @@
 
 *Sven Relijveld, OneDNA, september 2026*
 
-**📖 [Read the long version](../README.md)** · **🇳🇱 [Lees dit artikel in het Nederlands](README.nl.md)**
+**📖 [Read the long version](../row-level-security.md)** · **🇳🇱 [Lees dit artikel in het Nederlands](row-level-security.nl.md)**
 
 ---
 
@@ -153,7 +153,7 @@ to behave at every step. And build thorough validations into your testing cycle.
 
 ---
 
-The [long version](../README.md) has the measurements, the OBO token-hop table, the Unity Catalog
+The [long version](../row-level-security.md) has the measurements, the OBO token-hop table, the Unity Catalog
 design questions we worked through, and the platform features still in preview. The
 [`examples/`](../../examples/) directory has runnable demonstrations of each failure above.
 

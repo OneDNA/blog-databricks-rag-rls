@@ -2,7 +2,7 @@
 
 *Sven Relijveld, OneDNA, september 2026*
 
-**🇬🇧 [Read this article in English](README.md)**
+**🇬🇧 [Read this article in English](row-level-security.md)**
 
 ---
 
