@@ -166,9 +166,9 @@ If the platform will not enforce it, the application must. That sounds like a sm
 code, and it is: the ACL resolves per request from the caller's own token, the groups come from
 SCIM using their credentials so nobody can claim a membership they do not have, and the result is
 passed explicitly into every retrieval rather than picked up from ambient state. Perhaps forty
-lines. Almost every line of it is a deliberate choice.
+lines.
 
-Four of those decisions shaped the rest:
+Four decisions in that layer shaped the rest:
 
 - **Empty means nothing, not everything.** A caller with no mapped groups retrieves nothing, and a
   deployment where nobody has configured the mapping yet serves nothing to everybody. Empty is the
@@ -187,7 +187,7 @@ Four of those decisions shaped the rest:
 ![ACL resolution per request](../diagrams/rendered/acl-flow.png)
 
 > [!WARNING]
-> Each of those four has an alternative a reviewer would wave through.
+> Each of those four has an alternative that fails open.
 >
 > - **A permissive default** serves the whole corpus the first time somebody forgets the variable.
 > - **A malformed mapping degrading to empty** has the same symptom as a correctly empty one.

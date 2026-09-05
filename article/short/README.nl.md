@@ -79,7 +79,7 @@ ergens op kan filteren.
 ## De ACL bouwen: vier beslissingen
 
 De ACL wordt per request opgelost uit het token van de aanroeper zelf, met groepen uit SCIM met zijn
-credentials. Een veertig regels, misschien. Bijna elke regel is een bewuste keuze.
+credentials. Een veertig regels, misschien.
 
 ![ACL-resolutie per request](../../diagrams/rendered/acl-flow.png)
 
@@ -93,7 +93,7 @@ credentials. Een veertig regels, misschien. Bijna elke regel is een bewuste keuz
   Witteveen+Bos hebben opgeleverd. Zodra de toegang van een aanroeper een combinatie van kolommen
   is, is een gedeclareerde tabel het mechanisme dat meeschaalt.
 
-Van elk daarvan bestaat een alternatief dat een reviewer zou doorlaten. Een permissieve default
+Van elk daarvan bestaat een alternatief dat open faalt. Een permissieve default
 serveert het hele corpus zodra iemand een variabele vergeet. Een kapotte mapping die naar leeg
 degradeert lijkt precies op een terecht lege. Een groepsnaam los interpreteren geeft toegang weg aan
 iedereen die een groep mag aanmaken — gemeten tegen echte workspace-groepen maakte dat van een

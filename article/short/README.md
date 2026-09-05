@@ -78,7 +78,7 @@ anything.
 ## Building the ACL: four decisions
 
 The ACL resolves per request from the caller's own token, with groups from SCIM using their
-credentials. Perhaps forty lines. Almost every line of it is a deliberate choice.
+credentials. Perhaps forty lines.
 
 ![ACL resolution per request](../../diagrams/rendered/acl-flow.png)
 
@@ -92,8 +92,8 @@ credentials. Perhaps forty lines. Almost every line of it is a deliberate choice
   shipped at Witteveen+Bos. Once a caller's access is a combination of columns, a declared table is
   the mechanism that scales.
 
-Each has an alternative a reviewer would wave through. A permissive default serves the whole corpus
-the first time somebody forgets a variable. A malformed mapping degrading to empty looks exactly
+Each has an alternative that fails open. A permissive default serves the whole corpus the first
+time somebody forgets a variable. A malformed mapping degrading to empty looks exactly
 like a correctly empty one. Parsing a group's name loosely hands access to anyone who can create a
 group — measured against real workspace groups, that turned an administration group into a claim on
 a source system.

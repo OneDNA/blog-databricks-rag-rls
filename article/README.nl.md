@@ -169,9 +169,9 @@ Als het platform het niet afdwingt, moet de applicatie dat doen. Dat klinkt als 
 is het ook: de ACL wordt per request opgelost uit het token van de aanroeper zelf, de groepen komen
 uit SCIM met zijn credentials zodat niemand een lidmaatschap kan claimen dat hij niet heeft, en het
 resultaat wordt expliciet meegegeven aan elke retrieval in plaats van ergens uit de omgeving te
-worden opgepikt. Een veertig regels, misschien. Bijna elke regel is een bewuste keuze.
+worden opgepikt. Een veertig regels, misschien.
 
-Vier van die beslissingen bepaalden de rest:
+Vier beslissingen in die laag bepaalden de rest:
 
 - **Leeg betekent niets, niet alles.** Een aanroeper zonder gemapte groepen haalt niets op, en een
   deployment waar nog niemand de mapping heeft ingevuld serveert niets aan iedereen. Leeg is de
@@ -193,7 +193,7 @@ Vier van die beslissingen bepaalden de rest:
 ![ACL-resolutie per request](../diagrams/rendered/acl-flow.png)
 
 > [!WARNING]
-> Van elk van die vier bestaat een alternatief dat een reviewer zou doorlaten.
+> Van elk van die vier bestaat een alternatief dat open faalt.
 >
 > - **Een permissieve default** serveert het hele corpus zodra iemand de variabele vergeet.
 > - **Een kapotte mapping die naar leeg degradeert** heeft hetzelfde symptoom als een terecht lege.

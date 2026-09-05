@@ -1,7 +1,6 @@
 """Caller's groups to entitlements, via a declared table.
 
-This is the ACL itself: the layer that decides what one caller may retrieve. It is short, and
-almost every line of it is a deliberate choice.
+This is the ACL itself: the layer that decides what one caller may retrieve. It is short.
 
     $ python 03_acl_from_groups.py
 
