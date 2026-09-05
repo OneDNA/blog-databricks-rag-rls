@@ -11,9 +11,12 @@ different ones because they are allowed to see different things? Every organisat
 assistant on top of its own documents runs into this sooner or later.
 
 We built such a system on Databricks: a RAG chain over a governed corpus, reachable from
-applications outside Databricks, with access control per user. RAG on the native AI Search
-(formerly Vector Search) has no feature for row-level security, so we built it ourselves, and
-tested it thoroughly.
+applications outside Databricks, with access control per user. RAG on the native AI Search (formerly
+Vector Search) has no feature for row-level security, so we built it ourselves. The starting point
+was [Mastering RAG Chatbot Security: ACL and Metadata Filtering with Mosaic AI Vector
+Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot-security-acl-and-metadata-filtering-with/ba-p/101946),
+which tags chunks with a metadata column and passes a matching value as a query filter. That post
+passes the value in by hand; the piece we had to add was resolving it from the caller.
 
 ## AI RAG agent and index development
 
@@ -48,9 +51,20 @@ nothing to everybody, and it did. Restoring the original brought the rows back. 
 attached is not necessarily a filter that runs. `DESCRIBE TABLE EXTENDED` tells you it exists;
 changing it tells you it works.
 
+Four mechanisms stack on a governed table, and it helps to know which question each answers:
+
+| Mechanism | The question it answers |
+| --- | --- |
+| Object privileges | may you touch this table at all? |
+| ABAC policy | which rule applies, by tag, across the whole catalog? |
+| Row filter | which rows come back for you? |
+| Column mask | which values in them are readable by you? |
+
 Attribute-based access control went GA in April 2026 and scales this: tag the data, attach a policy
 to a catalog or schema, and every object carrying the tag is covered — including tables created next
-month by somebody who does not know the policy exists.
+month by somebody who does not know the policy exists. The pattern we now use everywhere is to tag
+everything `classification: unverified` at the catalog level and write a policy refusing anything
+still carrying that tag, so new tables are closed until somebody classifies them.
 
 ## The index does not inherit the filters
 
@@ -68,7 +82,15 @@ rather than a grant.
 
 Those columns are also a build-side prerequisite, not a retrieval concern. Their values usually come
 from the source system, so the pipeline has to reach them before the serve side can filter on
-anything.
+anything. At Witteveen+Bos we pulled the SharePoint metadata over the Graph API as a separate step
+and joined it onto the chunks later; the Databricks SharePoint connector now exposes
+`_sharepoint_metadata` directly, which removes that join. It needs DBR 18 LTS: on 17.3 the read
+still succeeds, with every metadata field absent.
+
+The related problem is that metadata **is** content. If you index `created_by_email` or `web_url` as
+a retrievable column, those values are visible to anyone who can query the index, whether or not
+they can read the chunk text. The ACL has to apply before any column comes back, not just before the
+chunk body does.
 
 > [!WARNING]
 > **A filter naming a column the index does not have is ignored.** No error, no warning — it just
@@ -81,6 +103,29 @@ The ACL resolves per request from the caller's own token, with groups from SCIM 
 credentials. Perhaps forty lines.
 
 ![ACL resolution per request](../../diagrams/rendered/acl-flow.png)
+
+The groups come from one call, with the caller's own token in the header:
+
+```python
+def groups_for(token: str) -> list[str]:
+    # Ask Databricks who the caller is, as the caller.
+    req = urllib.request.Request(
+        f"{WORKSPACE}/api/2.0/preview/scim/v2/Me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        body = json.loads(resp.read())
+    return [g["display"] for g in body.get("groups", [])]
+```
+
+Using the caller's token rather than the endpoint's is the whole point: nobody can claim a
+membership they do not have, because they are not the one answering the question. A 401 here is a
+routine event — an expired token — so what this function does on failure decides what an error
+grants. We return nothing.
+
+> [!NOTE]
+> `/Me` returns direct memberships. A workspace-local group can have an Entra-sourced group as a
+> member, so somebody can be a transitive member of a group this call does not list.
 
 - **Empty means nothing, not everything.** A caller with no mapped groups retrieves nothing, and a
   deployment where nobody configured the mapping serves nothing to everybody.
@@ -98,13 +143,36 @@ looks exactly like a correctly empty one. Parsing a group's name loosely hands a
 can create a group — measured against real workspace groups, that turned an administration group
 into a claim on a source system.
 
+Two habits came out of building this twice. Merge the caller's entitlement filter over any
+caller-supplied filters rather than under them, and wrap a caller-supplied boolean in an `and`;
+otherwise a caller can widen their own ACL by passing a filter, and the happy path looks identical
+either way. Keep the token in the `Authorization` header rather than the request body, so nothing
+that logs payloads can capture it, inference tables included.
+
 ## On-behalf-of: which identity reaches Unity Catalog
 
-All of that assumes the agent knows who is asking. On-behalf-of carries the caller's identity to
-Unity Catalog instead of the deployer's. Databricks Apps receives the token as a header and reaches
-the widest scope including Volumes; Model Serving holds it in the runtime and reaches everything
-except Volumes. Teams never yields a Databricks token at all — the Bot Framework returns an Entra
-token, which the bot exchanges at `/oidc/v1/token` (RFC 8693).
+All of that assumes the agent knows who is asking. The agent runs somewhere — a serving endpoint,
+an app, a container — and that thing has an identity of its own. On-behalf-of carries the caller's
+identity to Unity Catalog instead of the deployer's.
+
+Two hosts can run the chain, and one difference settles which:
+
+| | Databricks Apps | Model Serving |
+| --- | --- | --- |
+| Token arrives as | `x-forwarded-access-token` header | held by the serving runtime |
+| Code obtains it via | read the header | `ModelServingUserCredentials()` |
+| Reaches | the widest scope, including UC Volumes | index, warehouses, tables, Genie — **not** Volumes |
+
+The moment the chain touches a file, Apps has to be the host. Write the chain so it does not know
+which host it is on and that stays a configuration change.
+
+In front of either host sits whatever the user opens, and none of those are Databricks. Teams never
+yields a Databricks token: the Bot Framework OAuth prompt returns an **Entra** token, which
+Databricks rejects on workspace APIs, so the bot exchanges it at `/oidc/v1/token` (RFC 8693) and
+calls the endpoint with the result. That exchange needs an account-level federation policy trusting
+the issuer and audience, plus four Entra settings — `preferred_username` as an optional
+access-token claim, `requestedAccessTokenVersion` 2, an `access_as_user` scope, and the Bot
+Framework redirect URI.
 
 > [!WARNING]
 > Every prerequisite here fails with no error message: below `mlflow` 2.22.1 OBO is off by default,
@@ -115,7 +183,14 @@ We measured it: same user, same question, same model version, with the group map
 variable. Mapped to the caller's real group, retrieval returned rows and a grounded answer. Mapped
 to a group nobody is in, zero rows and an explained denial, and the model was never called.
 `obo_active` reported `True` in both runs, which isolates the entitlement filter from the identity
-plumbing.
+plumbing — without that flag a zero could mean "correctly denied" or "identity broken", and there
+would be no way to tell which.
+
+The entitled run also told us something we were not testing for. Asked what the corpus decides about
+a particular design question, the agent answered that the documents do not decide it and called the
+question unresolved, rather than inventing one. That is only checkable against a real corpus with
+real gaps in it, because synthetic test data answers every question you thought to ask when you
+wrote it.
 
 ## Genie as a second retrieval path
 
@@ -130,15 +205,39 @@ What differs is who enforces. On the prose branch it is our declared grants, so 
 a passage is "one of your groups allowed it". On the data branch it is Unity Catalog, so the reason
 is "Unity Catalog checked you", with the generated SQL and a statement id as evidence.
 
+We tested whether the caller's identity holds across the hops into Genie, and it does on every path
+we could construct. Query history attributes the statement to the human on the interactive path,
+through the agent under OBO, and from Teams — which adds a third hop through Entra and the token
+exchange. In each case `executed_as_user_name` names the person, not the endpoint's service
+principal.
+
 > [!WARNING]
 > On a non-interactive path the service principal is the whole of your access control: every human
 > calling through that integration sees the union of what it was granted. So a review of this path
 > has to check the service principal's grants.
 
+There is a configuration route to the same place. Databricks documents that granting a service
+principal access to a Genie space also requires granting its underlying tables and warehouse. Follow
+that guidance for an agent and the endpoint holds a standing grant on the data, so every caller sees
+the union of what the endpoint may read. Under user authorisation you do not need those grants; do
+not add them.
+
 ## Recommendations
 
-Know which side of the boundary you are on. A governed table is enforced by the platform and a
+**Know which side of the boundary you are on.** A governed table is enforced by the platform and a
 vector index is enforced by you, and those deserve different amounts of confidence.
+
+**Carry the columns at index time.** Your ACL can never be more expressive than the metadata you
+wrote alongside the chunks, and adding one later means a rebuild.
+
+**Deny on error.** Make "no entitlement" and "something broke" tell themselves apart, so a zero row
+count is diagnosable.
+
+**Check the service principal, not the feature.** On any non-interactive path the SP is the whole
+of your access control, whatever row-level security is switched on.
+
+Which path you land on follows from two questions — whether the content is structured, and whether
+your ACL fits the columns you can carry into the index:
 
 ![Enforcement path selection](../../diagrams/rendered/decision-tree.png)
 
@@ -153,8 +252,8 @@ to behave at every step. And build thorough validations into your testing cycle.
 
 ---
 
-The [long version](../row-level-security.md) has the measurements, the OBO token-hop table, the Unity Catalog
-design questions we worked through, and the platform features still in preview. The
+The [long version](../row-level-security.md) has the measurements, the OBO token-hop table, the
+Unity Catalog design questions we worked through, and the platform features still in preview. The
 [`examples/`](../../examples/) directory has runnable demonstrations of each failure above.
 
 ## Curious how other teams handle access control on AI applications?

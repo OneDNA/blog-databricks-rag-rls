@@ -157,8 +157,9 @@ agent zich bij elke stap gedraagt. En bouw grondige validaties in je testcyclus.
 
 ---
 
-De [lange versie](../row-level-security.nl.md) bevat de metingen, de tabel met token-hops voor OBO, de Unity
-Catalog-ontwerpvragen die we hebben uitgezocht, en de platformfeatures die nog in preview zijn. De
+De [lange versie](../row-level-security.nl.md) bevat de metingen, de tabel met token-hops voor OBO,
+de Unity Catalog-ontwerpvragen die we hebben uitgezocht, en de platformfeatures die nog in preview
+zijn. De
 map [`examples/`](../../examples/) bevat uitvoerbare demonstraties van elke fout hierboven.
 
 ## Benieuwd hoe andere teams toegangscontrole op AI-toepassingen aanpakken?

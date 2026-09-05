@@ -19,8 +19,12 @@ project, let alone to projects outside their access level.
 We built such a system on Databricks: a RAG chain over a governed corpus, reachable from
 applications outside Databricks — for example, Microsoft Teams or a custom web interface like
 OpenWebUI — with access control per user. RAG on the native AI Search (formerly Vector Search) has
-no feature for row-level security, so we built it ourselves, using a blog about filters as the
-starting point. Here we take a simplified version of that approach to show how it works.
+no feature for row-level security, so we built it ourselves. The starting point was [Mastering RAG
+Chatbot Security: ACL and Metadata Filtering with Mosaic AI Vector
+Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot-security-acl-and-metadata-filtering-with/ba-p/101946),
+which tags chunks with a metadata column and passes a matching value as a query filter. That post
+passes the value in by hand; the piece we had to add was resolving it from the caller, which is
+where SCIM comes in. Here we take a simplified version of that approach to show how it works.
 
 ## AI RAG agent and index development
 
@@ -74,11 +78,19 @@ runs. `DESCRIBE TABLE EXTENDED` tells you it exists; changing it tells you it wo
 Individual filters attached to every table do not scale well, if your data platform contains
 thousands of tables. Attribute-based access control went generally available in April 2026 and fixes
 that: you tag the data and attach a policy to a catalog or a schema, and every object carrying the
-tag is covered, including tables created next month by somebody who does not know the policy
-exists.
+tag is covered, including tables created next month by somebody who does not know the policy exists.
 `MATCH COLUMNS` finds the right column by tag rather than by name, so a table that spells it
 `team_code` instead of `project_group` is still covered. Coverage stops depending on anybody
 remembering.
+
+Four mechanisms stack on a governed table, and it helps to know which question each one answers:
+
+| Mechanism | The question it answers |
+| --- | --- |
+| Object privileges | may you touch this table at all? |
+| ABAC policy | which rule applies, by tag, across the whole catalog? |
+| Row filter | which rows come back for you? |
+| Column mask | which values in them are readable by you? |
 
 The ABAC documentation has one pattern we now use everywhere. Tag everything
 `classification: unverified` by default at the catalog level, then write a policy that refuses
@@ -167,6 +179,30 @@ code, and it is: the ACL resolves per request from the caller's own token, the g
 SCIM using their credentials so nobody can claim a membership they do not have, and the result is
 passed explicitly into every retrieval rather than read from somewhere else. Perhaps forty
 lines.
+
+The groups come from one call, with the caller's own token in the header:
+
+```python
+def groups_for(token: str) -> list[str]:
+    """Ask Databricks who the caller is, as the caller."""
+    req = urllib.request.Request(
+        f"{WORKSPACE}/api/2.0/preview/scim/v2/Me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        body = json.loads(resp.read())
+    return [g["display"] for g in body.get("groups", [])]
+```
+
+Using the caller's token rather than the endpoint's is the whole point: nobody can claim a
+membership they do not have, because they are not the one answering the question. A 401 here is a
+routine event — an expired token — so what this function does on failure decides what an error
+grants. We return nothing.
+
+> [!NOTE]
+> `/Me` returns direct memberships. A workspace-local group can have an Entra-sourced group as a
+> member, so somebody can be a transitive member of a group this call does not list, and removing
+> them from the outer group does not demote them.
 
 Four decisions in that layer shaped the rest:
 
@@ -486,11 +522,17 @@ not a rule. What changes is that you find out.
 
 ## Recommendations
 
-Know which side of the boundary you are on. A governed table is enforced by the platform and a
-vector index is enforced by you, and those deserve different amounts of confidence. Design for what
-you can observe rather than for what the mechanism promises. Deny on error, and make "no entitlement"
-and "something broke" tell themselves apart. On any non-interactive path, review what the service
-principal is granted.
+**Know which side of the boundary you are on.** A governed table is enforced by the platform and a
+vector index is enforced by you, and those deserve different amounts of confidence.
+
+**Carry the columns at index time.** Your ACL can never be more expressive than the metadata you
+wrote alongside the chunks, and adding one later means a rebuild.
+
+**Deny on error.** Make "no entitlement" and "something broke" tell themselves apart, so a zero row
+count is diagnosable.
+
+**Check the service principal, not the feature.** On any non-interactive path the SP is the whole
+of your access control, whatever row-level security is switched on.
 
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can carry into the index:

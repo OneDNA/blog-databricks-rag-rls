@@ -19,9 +19,13 @@ te kunnen, laat staan bij projecten buiten zijn eigen toegangsniveau.
 Zo'n systeem hebben we op Databricks gebouwd: een RAG-keten over een beheerd corpus, bereikbaar
 vanuit applicaties buiten Databricks — bijvoorbeeld Microsoft Teams of een eigen webinterface zoals
 OpenWebUI — met toegangscontrole per gebruiker. RAG op de native AI Search (voorheen Vector Search)
-heeft geen voorziening voor row-level security, dus hebben we het zelf gebouwd, met een blog over
-filters als vertrekpunt. Hier nemen we een vereenvoudigde versie van die aanpak om te laten zien hoe
-het werkt.
+heeft geen voorziening voor row-level security, dus hebben we het zelf gebouwd. Het vertrekpunt was
+[Mastering RAG Chatbot Security: ACL and Metadata Filtering with Mosaic AI Vector
+Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot-security-acl-and-metadata-filtering-with/ba-p/101946),
+dat chunks tagt met een metadatakolom en een bijpassende waarde als queryfilter meegeeft. Die post
+geeft die waarde met de hand mee; wat wij eraan moesten toevoegen was hem uit de aanroeper afleiden,
+en daar komt SCIM binnen. Hier nemen we een vereenvoudigde versie van die aanpak om te laten zien
+hoe het werkt.
 
 ## AI RAG-agent en indexontwikkeling
 
@@ -81,6 +85,16 @@ volgende maand worden aangemaakt door iemand die niet weet dat de policy bestaat
 `MATCH COLUMNS` vindt de juiste kolom op tag in plaats van op naam, dus een tabel die hem
 `team_code` noemt in plaats van `project_group` valt er nog steeds onder. Dekking hangt niet langer
 af van of iemand eraan denkt.
+
+Op een beheerde tabel stapelen vier mechanismen, en het helpt om te weten welke vraag elk ervan
+beantwoordt:
+
+| Mechanisme | De vraag die het beantwoordt |
+| --- | --- |
+| Object privileges | mag je deze tabel überhaupt aanraken? |
+| ABAC-policy | welke regel geldt hier, op tag, over de hele catalog? |
+| Row filter | welke rijen krijg jij terug? |
+| Column mask | welke waarden daarin mag jij lezen? |
 
 In de ABAC-documentatie staat één patroon dat we nu overal gebruiken. Tag standaard alles op
 catalogniveau met `classification: unverified` en schrijf een policy die alles met die tag weigert.
@@ -170,6 +184,30 @@ is het ook: de ACL wordt per request opgelost uit het token van de aanroeper zel
 uit SCIM met zijn credentials zodat niemand een lidmaatschap kan claimen dat hij niet heeft, en het
 resultaat wordt expliciet meegegeven aan elke retrieval in plaats van ergens uit de omgeving te
 worden opgepikt. Een veertig regels, misschien.
+
+De groepen komen uit één call, met het token van de aanroeper zelf in de header:
+
+```python
+def groups_for(token: str) -> list[str]:
+    """Vraag Databricks wie de aanroeper is, als de aanroeper."""
+    req = urllib.request.Request(
+        f"{WORKSPACE}/api/2.0/preview/scim/v2/Me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        body = json.loads(resp.read())
+    return [g["display"] for g in body.get("groups", [])]
+```
+
+Het token van de aanroeper gebruiken in plaats van dat van het endpoint is waar het om draait:
+niemand kan een lidmaatschap claimen dat hij niet heeft, omdat hij niet degene is die de vraag
+beantwoordt. Een 401 is hier een routinegebeurtenis — een verlopen token — dus wat deze functie bij
+een fout doet, bepaalt wat een fout verleent. Wij geven niets terug.
+
+> [!NOTE]
+> `/Me` geeft directe lidmaatschappen terug. Een workspace-lokale groep kan een Entra-groep als lid
+> hebben, dus iemand kan transitief lid zijn van een groep die deze call niet noemt, en hem uit de
+> buitenste groep halen degradeert hem niet.
 
 Vier beslissingen in die laag bepaalden de rest:
 
@@ -509,12 +547,17 @@ standhoudt op de backend die een signaal geeft, is geen regel. Wat verandert, is
 
 ## Aanbevelingen
 
-Weet aan welke kant van de grens je staat. Een beheerde tabel wordt door het platform afgedwongen en
-een vectorindex door jou, en die twee verdienen niet hetzelfde vertrouwen. Ga ervan uit dat elke
-fout stil is, want in deze stack zijn de meeste dat, en ontwerp op wat je kunt waarnemen in plaats
-van op wat het mechanisme belooft. Weiger bij fouten, en zorg dat "geen recht" en "er ging iets stuk" er
-van buiten niet hetzelfde uitzien. Review op elk niet-interactief pad waar de service principal toe
-gerechtigd is.
+**Weet aan welke kant van de grens je staat.** Een beheerde tabel wordt door het platform
+afgedwongen en een vectorindex door jou, en die twee verdienen niet hetzelfde vertrouwen.
+
+**Neem de kolommen mee bij het indexeren.** Je ACL kan nooit expressiever zijn dan de metadata die
+je naast de chunks hebt weggeschreven, en er later een toevoegen betekent een rebuild.
+
+**Weiger bij fouten.** Zorg dat "geen recht" en "er ging iets stuk" er van buiten niet hetzelfde
+uitzien, zodat nul rijen te diagnosticeren is.
+
+**Controleer de service principal, niet de feature.** Op elk niet-interactief pad ís de SP je
+volledige toegangscontrole, wat er ook aan row-level security aanstaat.
 
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
 kolommen die je mee de index in kunt nemen:
