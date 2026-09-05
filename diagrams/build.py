@@ -481,7 +481,7 @@ def architecture():
 
     d.add("title", title(
         "Row-level security in a Databricks RAG pipeline",
-        "Border colour says who enforces access control."),
+        "Border colour indicates which layer enforces access control."),
         f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
         f"verticalAlign=middle;{FONT}", 40, 18, 940, 75)
 
@@ -655,7 +655,7 @@ def architecture():
            [(1170, 282), (1170, 198)], "exitX=1;exitY=0.5;entryX=0;entryY=0.75;", parent="q")
 
     d.add("foot", esc(
-        f'<span style="font-size:12px;color:{NAVY_DEEP};">Every silent failure marked here sits on '
+        f'<span style="font-size:12px;color:{NAVY_DEEP};">Every failure marked here happens with no error, and sits on '
         f'a lava or deep-lava border. Where Unity Catalog enforces, a mistake raises; where your '
         f'code does, it returns rows.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
@@ -673,8 +673,8 @@ def architecture():
 def decision_tree():
     d = Doc("rls-decision-tree", "Which enforcement path", 1440, 1020)
 
-    d.add("t", title("Which enforcement path should you use?",
-                     'Who enforces it, and how would you know if they stopped.'),
+    d.add("t", title("Enforcement path selection",
+                     'Who enforces access control on each path, and how it is verified.'),
           f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
           f"verticalAlign=middle;{FONT}", 40, 20, 960, 73)
 
@@ -694,7 +694,7 @@ def decision_tree():
     outcomes = [
         ("uc", "unity-catalog", GREEN, "Unity Catalog RLS",
          "row filters and column masks, or an ABAC policy at catalog scope",
-         "<b>The platform enforces.</b> Resolves per caller, and survives the agent and Teams "
+         "<b>The platform enforces.</b> Resolves per caller, and holds across the agent and Teams "
          "hops.<br><br>Verify it by breaking it.", 60, 570, 240, 178),
         ("sp", "sql-warehouse", LAVA_DEEP, "Review the SP's grants",
          "the service principal <b>is</b> the identity",
@@ -780,7 +780,7 @@ def decision_tree():
 def build_and_serve():
     d = Doc("build-serve", "Build and serve", 1520, 820)
 
-    d.add("t", title("Two halves of the same platform",
+    d.add("t", title("AI RAG agent and index development",
                      "Build runs on a schedule and writes the index. Serve is a live "
                      "request path and only reads it."),
           f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
@@ -871,7 +871,7 @@ def build_and_serve():
         f'<span style="font-size:11px;color:{NAVY_DEEP};">Enforcing the ACL at query time means no '
         f'per-audience index and no copy of the corpus outside Databricks. The trade is that the '
         f'access decision runs in code you wrote on the serve side, against columns you chose on '
-        f'the build side weeks earlier.</span>'),
+        f'the build side.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
         f"spacingLeft=16;spacingTop=10;verticalAlign=top;fontSize=11;{FONT}", 40, 686, 1420, 70)
 
@@ -892,7 +892,7 @@ def governance_boundary():
     """
     d = Doc("rls-governance-boundary", "Where platform enforcement stops", 1280, 560)
 
-    d.add("t", title("What the index does not inherit",
+    d.add("t", title("Governance boundary: table to index",
                      "A governed table carries its filters. The index built from it does not."),
           f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
           f"verticalAlign=middle;{FONT}", 40, 20, 900, 72)
@@ -959,7 +959,7 @@ def governance_boundary():
 
     d.add("foot", esc(
         f'<span style="font-size:11px;color:{NAVY_DEEP};">Whatever access control applied to the '
-        f'text is not in the vector. The only thing that survives is what you deliberately wrote '
+        f'text is not in the vector. What arrives is what you deliberately wrote '
         f'into metadata columns alongside it — so your ACL can never be more expressive than the '
         f'columns you carried at index time.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
@@ -981,8 +981,8 @@ def acl_flow():
     """
     d = Doc("rls-acl-flow", "How the ACL resolves per request", 1560, 680)
 
-    d.add("t", title("How the ACL resolves, per request",
-                     "Every branch that cannot answer \"who is asking\" ends closed."),
+    d.add("t", title("ACL resolution per request",
+                     "Every branch that cannot resolve the caller ends closed."),
           f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
           f"verticalAlign=middle;{FONT}", 40, 18, 900, 68)
 
@@ -1080,7 +1080,7 @@ def acl_flow():
         f'<span style="font-size:11px;color:{NAVY_DEEP};">Empty means nothing, not everything. A '
         f'malformed mapping raises rather than resolving to empty, so "no entitlement" and '
         f'"something broke" tell themselves apart. A naming convention works while one group means '
-        f'one thing; a declared table is what survives a combination of columns.</span>'),
+        f'one thing; a declared table is what scales to a combination of columns.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
         f"spacingLeft=16;spacingTop=10;verticalAlign=top;fontSize=11;{FONT}", 1090, 490, 430, 128)
 

@@ -11,10 +11,14 @@ holds.
 
 ## The article
 
-| | |
-| --- | --- |
-| 🇬🇧 | **[Read it in English](article/README.md)** |
-| 🇳🇱 | **[Lees het in het Nederlands](article/README.nl.md)** |
+Two lengths. The short version is the argument with all five diagrams; the long version adds the
+measurements, the OBO token-hop table, the Unity Catalog design questions and the platform features
+still in preview.
+
+| | Short · ~6 min | Long · ~21 min |
+| --- | --- | --- |
+| 🇬🇧 | **[Read it in English](article/short/README.md)** | [The long version](article/README.md) |
+| 🇳🇱 | **[Lees het in het Nederlands](article/short/README.nl.md)** | [De lange versie](article/README.nl.md) |
 
 ## What else is here
 

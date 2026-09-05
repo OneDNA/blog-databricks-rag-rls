@@ -11,40 +11,42 @@ een verschillend antwoord te krijgen omdat ze verschillende dingen mogen zien? E
 een AI-assistent op haar eigen documenten zet, loopt hier vroeg of laat tegenaan.
 
 In onze projecten met Databricks, zoals bij [Witteveen+Bos](https://onedna.nl/witteveenbos/), zien
-we deze vragen steeds vaker langskomen. Hun business draait om het maken en verkopen van documenten,
-modellen en advies aan klanten, dus produceren ze binnen een project grote hoeveelheden
-ongestructureerde tekst. Maar niet iedereen hoort bij alle informatie in een project te kunnen, laat
-staan bij projecten buiten zijn eigen scope.
+we deze vragen steeds vaker langskomen. Hun business draait om het maken en verkopen van
+adviesrapporten, modellen en papers aan klanten, dus produceren ze binnen een project grote
+hoeveelheden ongestructureerde tekst. Maar niet iedereen hoort bij alle informatie in een project
+te kunnen, laat staan bij projecten buiten zijn eigen toegangsniveau.
 
 Zo'n systeem hebben we op Databricks gebouwd: een RAG-keten over een beheerd corpus, bereikbaar
-vanuit Microsoft Teams, met toegangscontrole per gebruiker. Het addertje is dat RAG op de native AI
-Search (voorheen Vector Search) geen voorziening voor row-level security heeft. Een blog over het
-gebruik van filters gaf ons de inspiratie om het zelf te bouwen, en hier nemen we een vereenvoudigde
-versie van die aanpak om te laten zien hoe het werkt.
+vanuit applicaties buiten Databricks — bijvoorbeeld Microsoft Teams of een eigen webinterface zoals
+OpenWebUI — met toegangscontrole per gebruiker. Het addertje is dat RAG op de native AI Search
+(voorheen Vector Search) geen voorziening voor row-level security heeft. Een blog over het gebruik
+van filters gaf ons de inspiratie om het zelf te bouwen, en hier nemen we een vereenvoudigde versie
+van die aanpak om te laten zien hoe het werkt.
 
-## AI Search voor agents: build en serve
+## AI RAG-agent en indexontwikkeling
 
-Het platform bestaat uit twee afzonderlijke machines die toevallig een catalog delen.
+Het AI-RAG-systeem bestaat uit twee delen: een build-deel, waar data wordt voorbereid en agents
+worden ontwikkeld, en een serve-deel, waar agents en indexen worden uitgerold en aangeroepen.
 
-De eerste is **build**. Die draait op een schema, is een batch-pipeline, en is het enige dat ooit
-naar de index schrijft. Documenten komen binnen vanuit SharePoint of een fileshare waar hun
-eigenaren ze publiceren, en de pipeline loodst ze door de medallion-lagen: raw geland, ingelezen in
-een tabel, geparsed en gechunkt en verrijkt, en daarna gecombineerd en geëmbed tot een index. Elke
-stap schrijft één beheerd Unity Catalog-artefact, en dat is wat het later inspecteerbaar maakt. De
-agent zelf wordt hier ook gebouwd: de chain, de tools, de retriever en de ACL worden apart
-geversioneerd en geregistreerd, en daarna als één endpoint uitgerold.
+Het eerste is het **build**-pad. Dat draait op een schema en is een batch-pipeline. Documenten komen
+binnen vanuit SharePoint of een fileshare waar hun eigenaren ze publiceren, en de pipeline loodst ze
+door de medallion-lagen: raw geland, ingelezen in een tabel, geparsed en gechunkt en verrijkt, en
+daarna gecombineerd en geëmbed tot een index. Elke stap schrijft één beheerd Unity Catalog-artefact,
+en dat is wat het later inspecteerbaar maakt. De agent zelf wordt hier ook gebouwd: de chain, de
+tools, de retriever en de ACL worden apart geversioneerd en geregistreerd, en daarna als één
+endpoint uitgerold.
 
-De tweede is **serve**. Dat is een live requestpad en het leest alleen maar. Een vraag komt binnen
-vanuit Teams of een web-UI, de uitgerolde agent stelt vast wie het vraagt, beperkt de retrieval tot
-wat die persoon mag zien, haalt op uit de index en antwoordt. Niets op dit pad schrijft iets terug.
+Het tweede is het **serve**-pad. Dat is een live requestpad en het leest de index op het moment van
+inferentie. Een vraag komt binnen vanuit Teams of een web-UI, de uitgerolde agent stelt vast wie het
+vraagt, beperkt de retrieval tot wat die persoon mag zien, haalt op uit de index en antwoordt.
 
-![Build en serve, naast elkaar](../diagrams/rendered/build-and-serve.png)
+![AI RAG-agent en indexontwikkeling](../diagrams/rendered/build-and-serve.png)
 
-Omdat de ACL binnen in de agent op querymoment wordt afgedwongen en niet is ingebakken in wat er
-geïndexeerd wordt, bedient één uitgerolde agent elk publiek. Er is geen index per doelgroep en geen
-kopie van het corpus buiten Databricks. De ruil is dat de toegangsbeslissing nu plaatsvindt in code
-die jij hebt geschreven aan de serve-kant, tegen metadatakolommen die je weken eerder aan de
-build-kant hebt gekozen. De twee helften hangen samen over tijd, en maar in één richting.
+We willen rechten op querymoment afdwingen, binnen in de agent, en ze niet inbakken in wat er
+geïndexeerd wordt. Dat betekent dat je geen aparte indexen nodig hebt voor verschillende
+doelgroepen: één uitgerolde agent bedient elk publiek, en er staat geen kopie van het corpus buiten
+Databricks. De ruil is dat de toegangsbeslissing nu plaatsvindt in code die jij hebt geschreven aan
+de serve-kant, tegen metadatakolommen die je aan de build-kant hebt gekozen.
 
 ## Row-level security op tabellen
 
@@ -68,16 +70,17 @@ en de gemaskeerde kolom kwam als `NULL` terug op de rijen die hij elders wel kon
 
 Daarna hebben we het filter expres kapot gemaakt: de body vervangen door
 `RETURN project_group = 'ZZ_NOWHERE'`, iedereen naar nul rijen zien zakken, het teruggezet en de
-zeven zien terugkomen. Een filter dat eraan hangt, is niet per se een filter dat draait. `DESCRIBE
-TABLE EXTENDED` vertelt je dát het bestaat; alleen het veranderen vertelt je dat het wérkt.
+zeven zien terugkomen. Een filter dat eraan hangt, is niet per se een filter dat draait.
+`DESCRIBE TABLE EXTENDED` vertelt je dát het bestaat; alleen het veranderen vertelt je dat het
+wérkt.
 
-Losse filters aan elke tabel hangen schaalt niet goed, als je dataplatform duizenden tabellen
-bevat. Attribute-based access control is sinds mei 2026 GA en lost dat op: je tagt de data en hangt
-een policy aan een catalog of schema, waarna elk object met die tag eronder valt, inclusief
-tabellen die volgende maand worden aangemaakt door iemand die nog nooit van je policy heeft
-gehoord. `MATCH COLUMNS` vindt de juiste
-kolom op tag in plaats van op naam, dus een tabel die hem `team_code` noemt in plaats van
-`project_group` valt er nog steeds onder. Dekking hangt niet langer af van of iemand eraan denkt.
+Losse filters aan elke tabel hangen schaalt niet goed, als je dataplatform duizenden tabellen bevat.
+Attribute-based access control is sinds april 2026 GA en lost dat op: je tagt de data en hangt een
+policy aan een catalog of schema, waarna elk object met die tag eronder valt, inclusief tabellen die
+volgende maand worden aangemaakt door iemand die nog nooit van je policy heeft gehoord.
+`MATCH COLUMNS` vindt de juiste kolom op tag in plaats van op naam, dus een tabel die hem
+`team_code` noemt in plaats van `project_group` valt er nog steeds onder. Dekking hangt niet langer
+af van of iemand eraan denkt.
 
 In de ABAC-documentatie staat één patroon dat we nu overal gebruiken. Tag standaard alles op
 catalogniveau met `classification: unverified` en schrijf een policy die alles met die tag weigert.
@@ -88,7 +91,7 @@ Tot hier doet het platform het werk voor je. Dan richt je een RAG-pipeline op di
 verandert het beeld: ABAC beschermt *tabellen*. Tag een tabel, embed de inhoud, en de index die
 daaruit komt erft de grants, maar niet de policy.
 
-## De index: waarom gaan de row filters niet mee?
+## De index neemt de filters niet over
 
 Een AI Search-index ís een Unity Catalog-object en er zitten grants op: iemand mag hem bevragen of
 niet. Wat er niet op zit, zijn row filters of column masks. Een index filteren is iets dat je in de
@@ -101,9 +104,9 @@ als het misgaat en applicatiecode faalt zoals jij hem toevallig geschreven hebt.
 
 Een document gaat op weg naar de index door parsing, chunking, verrijking en embedding, en de
 security-context bereikt de index niet. Een embedding is een rij floats; welke
-toegangscontrole er ook gold voor de tekst waar hij uit komt, die zit er niet in. Het enige dat
-overleeft, is wat je bewust in metadatakolommen ernaast hebt weggeschreven, wat betekent dat je ACL
-nooit expressiever kan zijn dan de kolommen die je bij het indexeren hebt meegenomen. Kies je dat
+toegangscontrole er ook gold voor de tekst waar hij uit komt, die zit er niet in. Wat aankomt, is
+wat je bewust in metadatakolommen ernaast hebt weggeschreven, wat betekent dat je ACL nooit
+expressiever kan zijn dan de kolommen die je bij het indexeren hebt meegenomen. Kies je dat
 verkeerd, dan is de reparatie een rebuild in plaats van een grant.
 
 Het bijbehorende probleem is dat metadata content **is**. Als je `created_by_email` of `web_url` als
@@ -112,16 +115,28 @@ ze de chunktekst nu mogen lezen of niet. De ACL moet toeslaan vóórdat welke ko
 terugkomt, niet alleen vóór de chunktekst. Een filter dat de tekst beschermt en de auteurslijst
 lekt, heeft niets beschermd.
 
-![Wat de index niet overneemt](../diagrams/rendered/governance-boundary.png)
+![Governance-grens: tabel naar index](../diagrams/rendered/governance-boundary.png)
 
 ## Filters op AI Search
 
-Dus schrijf je het filter zelf en geef je het mee met de query. De index draagt daarvoor drie
-metadatakolommen — `source_system`, `site_id` en `sensitivity` — en een query noemt de waarden die
-de aanroeper mag zien. Tegen een live index van 629 chunks gaf een filter op een echte kolom met een
-echte waarde drie rijen terug, en dezelfde query met een waarde die nergens op matcht nul. Het
-predicaat wordt toegepast, en die tweede meting is het bewijs: een filter waarvan je weet dat het
-niets mag opleveren, dat niets oplevert.
+Dus schrijf je het filter zelf en geef je het mee met de query. In ons voorbeeld draagt de index
+daarvoor drie metadatakolommen — `source_system`, `site_id` en `sensitivity` — en een query noemt de
+waarden die de aanroeper mag zien. Die drie zijn geen natuurlijke eigenschappen van een document.
+Ze bestaan alleen omdat de toegangseis erom vroeg, en ze kiezen is een ontwerpbeslissing die je bij
+het indexeren neemt, geen detail.
+
+Daarmee zijn ze een randvoorwaarde voor de pipeline en niet iets van de retrieval. De waarden moeten
+meestal uit het bronsysteem zelf komen, dus de build-kant moet erbij kunnen voordat de serve-kant
+ergens op kan filteren. Bij Witteveen+Bos haalden we de SharePoint-metadata als aparte stap over de
+Graph API op en joinden die later op de chunks. De Databricks SharePoint-connector stelt inmiddels
+`_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt — het is goed om te weten dat
+dat DBR 18 LTS vereist, want op 17.3 slaagt de read nog steeds, maar zonder ook maar één
+metadataveld.
+
+Tegen een live index gaf een filter op een echte kolom met een echte waarde rijen terug, en
+dezelfde query met een waarde die nergens op matcht nul. Het predicaat wordt toegepast, en die
+tweede meting is het bewijs: een filter waarvan je weet dat het niets mag opleveren, dat niets
+oplevert.
 
 Voordat er een query de deur uit gaat, toetsen we de keys van het filter tegen de kolommen die de
 index daadwerkelijk heeft:
@@ -151,16 +166,15 @@ en een regel die maar op één backend geldt is niet echt een regel.
 > guard hierboven tegen het kolomcontract in plaats van het filter te vertrouwen, en daarom is een
 > filter dat niets mag opleveren het draaien waard bij elke deploy.
 
-## Zelf de ACL bouwen: vier beslissingen
+## De ACL bouwen: vier beslissingen
 
 Als het platform het niet afdwingt, moet de applicatie dat doen. Dat klinkt als weinig code, en dat
 is het ook: de ACL wordt per request opgelost uit het token van de aanroeper zelf, de groepen komen
 uit SCIM met zijn credentials zodat niemand een lidmaatschap kan claimen dat hij niet heeft, en het
 resultaat wordt expliciet meegegeven aan elke retrieval in plaats van ergens uit de omgeving te
-worden opgepikt. Een veertig regels, misschien. Bijna elke regel is een beslissing over hoe je
-faalt.
+worden opgepikt. Een veertig regels, misschien. Bijna elke regel is een bewuste keuze.
 
-Vier beslissingen in die laag telden zwaarder dan het mechanisme:
+Vier van die beslissingen bepaalden de rest:
 
 - **Leeg betekent niets, niet alles.** Een aanroeper zonder gemapte groepen haalt niets op, en een
   deployment waar nog niemand de mapping heeft ingevuld serveert niets aan iedereen. Leeg is de
@@ -176,26 +190,23 @@ Vier beslissingen in die laag telden zwaarder dan het mechanisme:
   configureren. Dat houdt stand zolang één groep op één ding mapt. Zodra de toegang van een
   aanroeper een combinatie van metadatakolommen is — een bronsysteem *én* een site *én* een
   gevoeligheid — moet de naam een tuple coderen, en is een gedeclareerde tabel het mechanisme dat
-  overleeft. Dan verleent een niet-gemapte groep niets, en is een bronsysteem toevoegen een
+  meeschaalt. Dan verleent een niet-gemapte groep niets, en is een bronsysteem toevoegen een
   reviewbare wijziging in een configuratiewaarde.
 
-![Hoe de ACL per request wordt bepaald](../diagrams/rendered/acl-flow.png)
+![ACL-resolutie per request](../diagrams/rendered/acl-flow.png)
 
 > [!WARNING]
-> Van elk van die vier bestaat een alternatief dat er in een review redelijk uitziet.
+> Van elk van die vier bestaat een alternatief dat een reviewer zou doorlaten.
 >
-> **Een permissieve default** serveert het hele corpus de eerste keer dat iemand de variabele
-> vergeet, en op de dag van deployen is dat niet te onderscheiden van correcte werking.
-> **Een kapotte mapping die naar leeg degradeert** geeft hetzelfde symptoom als een terecht lege —
-> geen rijen — en je bent een middag bezig de rechten de schuld te geven.
-> **Een aanroeper zonder rechten antwoorden uit algemene kennis** levert iets op dat precies leest
-> als een geslaagde retrieval.
-> **Een groepsnaam los interpreteren** geeft toegang weg aan iedereen die een groep mag aanmaken:
-> noem er één passend en het corpus gaat open. Gemeten tegen echte workspace-groepen maakte een
-> regel die een recht uitlas uit elke groep waarvan de naam een bekend woord bevatte, van een
-> beheergroep een claim op een bronsysteem. Een naamconventie is een prima mechanisme, maar het
-> moet een exacte match zijn op namen die alleen jouw identiteitsproces kan uitgeven — nooit een
-> substring-test.
+> - **Een permissieve default** serveert het hele corpus zodra iemand de variabele vergeet.
+> - **Een kapotte mapping die naar leeg degradeert** heeft hetzelfde symptoom als een terecht lege.
+> - **Antwoorden uit algemene kennis** leest precies als een geslaagde retrieval.
+> - **Een groepsnaam los interpreteren** geeft toegang weg aan iedereen die een groep mag aanmaken.
+
+Die laatste is niet hypothetisch. Gemeten tegen echte workspace-groepen maakte een regel die een
+recht uitlas uit elke groep waarvan de naam een bekend woord bevatte, van een beheergroep een claim
+op een bronsysteem. Een naamconventie is een prima mechanisme, maar het moet een exacte match zijn
+op namen die alleen jouw identiteitsproces kan uitgeven — nooit een substring-test.
 
 
 De array-overlap-aanpak hierachter hebben wij niet bedacht. We hebben zo'n ACL per chunk eerder
@@ -226,12 +237,72 @@ except Exception:
     return Entitlements.nobody(principal)   # een routinefout neemt hem weg
 ```
 
-Allebei één regel en allebei zien ze er in een review redelijk uit. Bij de eerste hangt veiligheid
+Allebei één regel en allebei zouden ze een review doorkomen. Bij de eerste hangt veiligheid
 ervan af dat geen enkel document die sentinel-string ooit in zijn ACL-kolom draagt, en dat is een
 afspraak die door niets wordt afgedwongen en die één hernoeming verwijderd is van falen. Wij falen
 gesloten.
 
-## On-behalf-of: wiens rechten gebruikt de agent?
+### Hoort de ACL een Unity Catalog-functie te zijn?
+
+Als Unity Catalog het ding is dat beheert, is de logische vraag of deze logica daar niet in hoort
+als geregistreerde functie, in plaats van in de Python van de agent. Het blijkt niet te kunnen.
+
+Een Python-UDF die in Unity Catalog is geregistreerd, kan geen uitgaande netwerkverzoeken doen. Op
+een serverless SQL warehouse is de documentatie expliciet: een query die het toch probeert, **blijft
+oneindig hangen** in plaats van te falen. Onze ACL zoekt groepslidmaatschap op via SCIM, dus de
+identiteitshelft kan hoe dan ook niet naar een functie verhuizen zonder een preview-netwerkfeature,
+een batch-UDF en een service credential. Een request dat eeuwig hangt, is een ergere fout dan een
+request dat een error geeft.
+
+De filterhelft zou wél kunnen verhuizen, en hoort dat nog steeds niet te doen. Een Unity
+Catalog-functie wordt niet door de index afgedwongen: de agent moet hem aanroepen en het resultaat
+daarna zelf toepassen, precies zoals hij nu doet. Je koopt er indirectie mee, geen handhaving — en
+je betaalt een round-trip per request, moeilijkere unit tests, en een functieversie die je in stap
+moet houden met een agentversie. Databricks documenteert de applicatieroute als de bedoelde route:
+row- en column-level permissies worden op een index niet ondersteund, en je implementeert je eigen
+ACL op applicatieniveau met de filter-API.
+
+> [!WARNING]
+> **`is_account_group_member()` in een functiebody evalueert niet per se de persoon die je denkt.**
+> Statements daar draaien met de rechten van de **eigenaar** en de functie kijkt naar de
+> **sessie**gebruiker, dus op elk pad dat terugvalt op de credentials van het endpoint wordt het de
+> service principal.
+
+De documentatie beschrijft het gedrag van die functie onder model serving on-behalf-of helemaal
+niet, dus wij beschouwen het bepalen van de aanroeper daar als onbevestigd in plaats van
+gegarandeerd. Dezelfde redenering sluit uit dat je de ACL als agent-tool aanbiedt: een tool is iets
+dat het model kiest om aan te roepen, en dit moet bij elk request draaien, vóór de retrieval.
+
+### Is de rechtenmapping een eigen beheerde tabel?
+
+De vier beslissingen hierboven zetten rechten in een gedeclareerde mapping, en in onze build is die
+mapping een configuratiewaarde — en daarom betekent "een bronsysteem toevoegen is een reviewbare
+wijziging" een pull request. Een Unity Catalog-tabel is er een betere plek voor, met één voorwaarde
+die het hele ontwerp bepaalt.
+
+Als tabel krijgt hij wat een configuratiewaarde niet kan hebben: `MODIFY` dat los van het
+deploy-pad wordt vergeven, Delta-historie die antwoordt wie welk recht wanneer heeft gewijzigd,
+lineage, en auditgebeurtenissen in `system.access.audit`. Autorisatiedata is precies het soort data
+waarover je later vragen moet kunnen beantwoorden.
+
+De voorwaarde is welke identiteit hem leest. Lees je de mapping onder het token van de aanroeper,
+dan heeft die aanroeper `SELECT` nodig — en dan kan iedere gebruiker de rechten van elke groep
+uitlezen, wat een onthulling over het veiligheidsmodel zelf is en strikt slechter dan de
+configuratiewaarde die het vervangt. Het requestpad gebruikt dus bewust twee identiteiten: het token
+van de aanroeper bepaalt het groepslidmaatschap van die aanroeper, en de service principal van het
+endpoint leest de mapping. Cache hem in het proces met een begrensde verversing, en bepaal wat er
+gebeurt als de read faalt, want de ACL hangt nu af van een datapad dat overeind staat voordat hij
+iets kan autoriseren. Ook daar: gesloten falen.
+
+> [!NOTE]
+> Grijp niet naar een row filter op de mapping-tabel om het onthullingsprobleem op te lossen. Time
+> travel en cloning falen op een tabel met een actieve ABAC-policy, dus dan geef je juist de
+> audithistorie weg die de tabel in de eerste plaats rechtvaardigde.
+>
+> Deze is een ontwerpconclusie en geen meting. Al het andere in dit artikel hebben we gedraaid; de
+> mapping in onze build is nog steeds de configuratiewaarde.
+
+## On-behalf-of: welke identiteit Unity Catalog bereikt
 
 Dat alles gaat ervan uit dat de agent weet wie het vraagt, en dat is het waard om te controleren.
 De agent draait ergens — een serving endpoint, een app, een container — en dat ding heeft een eigen
@@ -284,25 +355,24 @@ voor het schema dat hij aanmaakt en de agent kan zich anders in `dev_<gebruiker>
 registreren terwijl de gevulde index in het gedeelde schema staat.
 
 > [!WARNING]
-> Elke voorwaarde in deze paragraaf faalt zonder foutmelding.
->
-> Onder `mlflow` 2.22.1 staat OBO standaard uit en antwoordt de agent als het endpoint. Ontbreekt
-> `databricks-ai-bridge` in de gelogde requirements, dan laadt het model en valt het terug op zijn
-> eigen identiteit. Elk van de vier Entra-instellingen breekt de token-exchange met een fout die
-> iets anders noemt. En retrieval die naar het verkeerde schema wijst geeft nul rijen, wat er
-> precies zo uitziet als een terecht geweigerde aanroeper.
->
-> Assert op de identiteit die het antwoord heeft opgeleverd, niet op de vraag of er een antwoord
-> kwam. Een test die op een response controleert, slaagt even goed of elke aanroeper nu zijn eigen
-> rechten krijgt of die van de deployer.
+> **Elke voorwaarde in deze paragraaf faalt zonder foutmelding.** Onder `mlflow` 2.22.1 staat OBO
+> standaard uit; een ontbrekende `databricks-ai-bridge` laat de agent terugvallen op zijn eigen
+> identiteit; elk van de vier Entra-instellingen breekt de exchange met een fout die iets anders
+> noemt.
 
-## Testen: hoe weet je of het filter iets heeft gedaan?
+Retrieval die naar het verkeerde schema wijst geeft ook nul rijen, wat er precies zo uitziet als een
+terecht geweigerde aanroeper. Assert dus op de identiteit die het antwoord heeft opgeleverd en niet
+op de vraag of er een antwoord kwam — een test die op een response controleert, slaagt even goed of
+elke aanroeper nu zijn eigen rechten krijgt of die van de deployer.
+
+## Het filter meten
 
 Op basis van een code review is dit allemaal weinig waard, dus hebben we het gemeten. Een
-gecontroleerd experiment tegen het gedeployde endpoint: dezelfde gebruiker, dezelfde vraag,
-dezelfde geregistreerde modelversie, met de groep-naar-recht-mapping als enige variabele. Gemapt op de echte groep van de aanroeper gaf retrieval vijf rijen en een
-onderbouwd antwoord met verwijzing naar het corpus. Gemapt op een groep waar niemand in zit, gaf
-het nul rijen en een uitgelegde weigering, en werd het model nooit aangeroepen.
+gecontroleerd experiment tegen het gedeployde endpoint: dezelfde gebruiker, dezelfde vraag, dezelfde
+geregistreerde modelversie, met de groep-naar-recht-mapping als enige variabele. Gemapt op de echte
+groep van de aanroeper gaf retrieval vijf rijen en een onderbouwd antwoord met verwijzing naar het
+corpus. Gemapt op een groep waar niemand in zit, gaf het nul rijen en een uitgelegde weigering, en
+werd het model nooit aangeroepen.
 
 `obo_active` rapporteerde in beide runs `True`, en dat isoleert het rechtenfilter van de
 identiteitsplumbing: de aanroeper werd in beide gevallen correct herkend en alleen zijn recht
@@ -347,7 +417,7 @@ sequenceDiagram
 De agent rapporteert welke handhaving elk antwoord heeft opgeleverd, de groepsgrant of Unity
 Catalog, zodat een citatie te herleiden is tot het recht dat hem toeliet.
 
-## Genie als tweede pad
+## Genie als tweede retrieval-pad
 
 Niet elke vraag is een documentvraag. Vraag hoeveel uren er per projectgroep zijn geboekt en een
 similarity search over proza geeft passages terug, en geen enkel aantal passages telt op tot een
@@ -355,15 +425,14 @@ totaal. Daarom heeft de agent een tweede retrieval-pad, waar het platform het ha
 overneemt, en kiest het model ertussen. Vragen over besluiten en onderbouwing gaan naar similarity
 search over proza; vragen over aantallen en totalen gaan naar een Genie-space, die SQL genereert
 tegen beheerde tabellen. Beide draaien op de credentials van de aanroeper, dus het
-identiteitsverhaal is op beide
-takken hetzelfde en het model kan zich geen weg banen naar een bevoorrecht pad. Wat verschilt, is
-wie handhaaft. Op de prozatak is dat onze gedeclareerde grants-tabel, en herkomst betekent daar "een
-van jouw groepen liet deze passage toe". Op de datatak is het Unity Catalog zelf, en herkomst
-betekent "Unity Catalog heeft jou geëvalueerd", met de gegenereerde SQL en een statement-id als
-bewijs.
+identiteitsverhaal is op beide takken hetzelfde en het model kan zich geen weg banen naar een
+bevoorrecht pad. Wat verschilt, is wie handhaaft. Op de prozatak is dat onze gedeclareerde
+grants-tabel, en herkomst betekent daar "een van jouw groepen liet deze passage toe". Op de datatak
+is het Unity Catalog zelf, en herkomst betekent "Unity Catalog heeft jou geëvalueerd", met de
+gegenereerde SQL en een statement-id als bewijs.
 
-We hebben getest of de identiteit van de aanroeper de hops naar Genie overleeft, en dat doet hij op
-elk pad dat we konden bouwen. Query history schrijft het statement toe aan de mens op het
+We hebben getest of de identiteit van de aanroeper standhoudt over de hops naar Genie, en dat doet
+hij op elk pad dat we konden bouwen. Query history schrijft het statement toe aan de mens op het
 interactieve pad, via de agent onder OBO, en vanuit Teams — dat een derde hop toevoegt via Entra en
 de token-exchange. In alle gevallen noemt `executed_as_user_name` de persoon, niet de service
 principal van het serving endpoint.
@@ -371,7 +440,7 @@ principal van het serving endpoint.
 Beide takken, en het identiteitswerk ervoor, op één pagina — lees hem eerst op randkleur, daarna
 pas op pijlen:
 
-![Het hele systeem, gekleurd naar wie handhaaft](../diagrams/rendered/architecture.png)
+![Row-level security in een Databricks RAG-pipeline](../diagrams/rendered/architecture.png)
 
 Een service principal die dezelfde space via de API aanroept, krijgt zijn eigen identiteit
 geëvalueerd, eerlijk, als zichzelf. Er worden geen rechten witgewassen. Onder user authorization
@@ -379,30 +448,27 @@ gelden de grants van de aanroeper zelf en heeft het endpoint geen eigen staande 
 declareert `SystemAuthPolicy` alleen het chatmodel en draagt `UserAuthPolicy` de rest.
 
 > [!WARNING]
-> Op een niet-interactief pad ís de service principal je volledige toegangscontrole. Iedere mens
-> die via die integratie belt, ziet de vereniging van waar de SP recht op heeft, zonder enige
-> differentiatie per aanroeper: een ruim gerechtigde SP slaat iedere aanroeper plat tot dezelfde
-> toegang, correct en wel. De vraag waar een review naar moet kijken is dus waar die service
-> principal toe gerechtigd is, niet of row-level security aanstaat.
->
-> Er is een configuratieroute naar hetzelfde punt. Databricks documenteert dat een SP toegang geven
-> tot een Genie-space ook vereist dat je de onderliggende tabellen en warehouse verleent. Volg die
-> richtlijn voor een agent en het endpoint houdt een staande grant op de data, dus ziet iedere
-> aanroeper de vereniging van wat het endpoint mag lezen. Onder user authorization heb je die
-> grants niet nodig; voeg ze niet toe.
->
-> **De lijst met gecureerde tabellen is evenmin een grens, ook al ziet ons eigen resultaat er zo
-> uit.** Genie weigerde vier pogingen om een tabel buiten de lijst te bereiken en genereerde
-> helemaal geen SQL. Dat is prompt-scoping — een model dat een tabel niet wil noemen die het niet
-> heeft gezien — en het verandert met een modelupdate en zonder release note. De leverancier
-> documenteert de tegenovergestelde garantie. Vertrouw op Unity Catalog-grants en nooit op de
-> gecureerde lijst.
+> **Op een niet-interactief pad ís de service principal je volledige toegangscontrole.** Iedere
+> mens die via die integratie belt, ziet de vereniging van waar hij recht op heeft, zonder enige
+> differentiatie. Een review van dit pad moet dus de grants van die service principal nagaan.
 
-## Waar dit heen gaat
+Er is een configuratieroute naar hetzelfde punt. Databricks documenteert dat een SP toegang geven
+tot een Genie-space ook vereist dat je de onderliggende tabellen en warehouse verleent. Volg die
+richtlijn voor een agent en het endpoint houdt een staande grant op de data, dus ziet iedere
+aanroeper de vereniging van wat het endpoint mag lezen. Onder user authorization heb je die grants
+niet nodig; voeg ze niet toe.
+
+De lijst met gecureerde tabellen is evenmin een grens, ook al ziet ons eigen resultaat er zo uit.
+Genie weigerde vier pogingen om een tabel buiten de lijst te bereiken en genereerde helemaal geen
+SQL. Dat is prompt-scoping — een model dat een tabel niet wil noemen die het niet heeft gezien — en
+het verandert met een modelupdate en zonder release note. De leverancier documenteert de
+tegenovergestelde garantie. Vertrouw op Unity Catalog-grants en nooit op de gecureerde lijst.
+
+## Platformfeatures in preview
 
 Twee Unity Catalog-previews mikken op het service-principalprobleem en op het schrijven van één
-policy per groep. Beide zijn Beta, beide
-moeten door een account-admin worden aangezet, en we hebben geen van beide in productie gedraaid.
+policy per groep. Beide zijn Beta, beide moeten door een account-admin worden aangezet, en we hebben
+geen van beide in productie gedraaid.
 
 Identity attributes laten een policy de attributen van de aanroeper rechtstreeks lezen in plaats van
 via groepslidmaatschap. Account-SCIM provisioneert `title`, `department` en `costCenter` vanuit je
@@ -420,16 +486,17 @@ OAuth-applicatie, waarmee "een agent mag minder zien dan de mens namens wie hij 
 uitdrukbaar wordt op het platform in plaats van gebouwd in de keten.
 
 > [!NOTE]
-> Beide features zijn Beta, en context attributes dekken nog niet elk pad. De documentatie is
+> **Beide features zijn Beta, en context attributes dekken niet elk pad.** De documentatie is
 > expliciet dat Genie `request.is_on_behalf_of` niet zet, dus de Genie-route valt buiten de policy.
-> Een personal access token zet hem ook niet, en de ingebouwde `databricks-cli` client-id is
-> gedeeld, dus een agent die hem gebruikt is niet te onderscheiden van een mens achter een
-> terminal. Registreer je eigen OAuth-applicatie als je een specifieke wilt governen.
->
-> Let bij identity attributes op de polariteit van de conditie. De functies geven `false` terug
-> zowel als de gebruiker geen waarde heeft als wanneer de sleutel niet bestaat, dus schrijf de
-> conditie zó dat `false` beperkt. Andersom ziet elke gebruiker die je SCIM-sync niet heeft gevuld
-> de data ongemaskeerd.
+
+Een personal access token zet hem ook niet, en de ingebouwde `databricks-cli` client-id is gedeeld,
+dus een agent die hem gebruikt is niet te onderscheiden van een mens achter een terminal. Registreer
+je eigen OAuth-applicatie als je een specifieke wilt governen.
+
+Let bij identity attributes op de polariteit van de conditie. De functies geven `false` terug zowel
+als de gebruiker geen waarde heeft als wanneer de sleutel niet bestaat, dus schrijf de conditie zó
+dat `false` beperkt. Andersom ziet elke gebruiker die je SCIM-sync niet heeft gevuld de data
+ongemaskeerd.
 
 Er is een derde optie, en die is vandaag al beschikbaar in plaats van Beta: serveer de vectoren uit
 pgvector op Lakebase in plaats van uit AI Search. De ACL wordt dan weer een row-level
@@ -439,11 +506,11 @@ latency-argument.
 
 Diezelfde klasse fouten verdwijnt er niet mee. Ons `sensitivity`-filter noemde een kolom die geen
 enkele stap ooit produceerde: op AI Search wordt dat genegeerd, en een aanroeper die tot `internal`
-beperkt was kreeg stilletjes `confidential`-rijen. Op pgvector is hetzelfde filter een harde "kolom
-bestaat niet" — dat geeft een signaal, en is even kapot. Een regel die alleen standhoudt op de
-backend die een signaal geeft, is geen regel. Wat verandert, is dat je het merkt.
+beperkt was kreeg zonder enige melding `confidential`-rijen. Op pgvector is hetzelfde filter een
+harde "kolom bestaat niet" — dat geeft een signaal, en is even kapot. Een regel die alleen
+standhoudt op de backend die een signaal geeft, is geen regel. Wat verandert, is dat je het merkt.
 
-## Wat ik een team dat hieraan begint zou meegeven
+## Aanbevelingen
 
 Weet aan welke kant van de grens je staat. Een beheerde tabel wordt door het platform afgedwongen en
 een vectorindex door jou, en die twee verdienen niet hetzelfde vertrouwen. Ga ervan uit dat elke
@@ -455,19 +522,21 @@ gerechtigd is.
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
 kolommen die je mee de index in kunt nemen:
 
-![Welk handhavingspad je moet gebruiken](../diagrams/rendered/decision-tree.png)
+![Keuze van het handhavingspad](../diagrams/rendered/decision-tree.png)
 
 Verifieer daarna door te breken. Richt het filter op iets dat niets mag opleveren en kijk of het
 niets oplevert. Trek de grant in en kijk of het antwoord verdwijnt. Zet de groep op eentje waar
 niemand in zit en controleer of het rijaantal naar nul gaat. Zolang je een control niet expres hebt
 zien falen, heb je hem niet zien werken.
 
-Voor mij is de eerlijke samenvatting dat de mechanismen het makkelijke deel waren. Unity Catalog
-evalueert per aanroeper, OBO propageert door drie hops inclusief Teams, filters worden toegepast, en
-dat hebben we allemaal gemeten. De moeilijkheid zat nooit in ze aan de praat krijgen. Die zat in
-genoeg instrumentatie bouwen om te weten wanneer ze ermee waren gestopt.
+Voor mij is de eerlijke samenvatting dat wéten hoe we wilden dat het systeem zich gedroeg het
+makkelijke deel was. Het zich zo laten gedragen, en kunnen vaststellen wanneer dat niet zo was, was
+het moeilijke deel. De mechanismen zijn niet eenvoudiger: Unity Catalog evalueert per aanroeper, OBO
+propageert door drie hops inclusief Teams, en filters worden toegepast — maar elk daarvan kostte
+werk om goed te krijgen, en nog meer werk om te bewijzen. Wat we hebben gemeten, is dat ze nog
+steeds werkten toen we keken.
 
-## Zelf proberen
+## Uitvoerbare voorbeelden
 
 De map [`examples/`](../examples/) bevat uitvoerbare demonstraties van elke fout die hierboven staat,
 en [`diagrams/`](../diagrams/) bevat de architectuur als bewerkbare draw.io-bronbestanden.
@@ -483,11 +552,10 @@ en [`diagrams/`](../diagrams/) bevat de architectuur als bewerkbare draw.io-bron
 
 ## Tot slot
 
-Row-level security over een RAG-agent is geen feature die je aanzet. Het is een reeks kleine
-beslissingen over hoe je faalt, genomen weken uit elkaar aan weerszijden van de index, en de meeste
-ervan zien er in een review redelijk uit. Unity Catalog doet zijn deel per aanroeper en OBO draagt
-de identiteit door drie hops heen; de rest is van jou. Bouw daarom niet alleen de control, maar ook
-het bewijs dat hij nog draait.
+Row-level security over een RAG-agent is een reeks kleine ontwerpbeslissingen die allemaal soepel
+samen moeten werken, en geen feature die je aanzet. Unity Catalog doet zijn deel per
+aanroeper en OBO draagt de identiteit door drie hops heen. Neem de tijd om uit te tekenen hoe je
+wilt dat je agent zich bij elke stap gedraagt. En bouw grondige validaties in je testcyclus.
 
 ## Benieuwd hoe andere teams toegangscontrole op AI-toepassingen aanpakken?
 

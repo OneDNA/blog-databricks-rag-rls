@@ -1,4 +1,4 @@
-"""Three OBO mechanisms, side by side -- and the ways each is silently off.
+"""Three OBO mechanisms, side by side -- and how each is switched off with no error.
 
 An ACL keyed on the caller is worthless if the system has lost track of who the caller is. This
 file is about that layer: how the caller's identity reaches Databricks, and what it can reach
@@ -180,7 +180,7 @@ def main() -> int:
     print("  endpoint. Writing the chain host-agnostically is what makes that a config change.")
 
     print("\n" + "=" * 92)
-    print("\nHOW EACH ONE IS SILENTLY OFF\n")
+    print("\nHOW EACH ONE IS SWITCHED OFF, WITH NO ERROR\n")
     for m in MECHANISMS:
         print(f"  {m.name}:")
         for line in _wrap(m.silent_failure, 84):

@@ -1,4 +1,4 @@
-"""Silent failure #1: a filter naming a column the index does not have is IGNORED.
+"""Failure #1: a filter naming a column the index does not have is IGNORED, with no error.
 
 This is the failure mode the whole article is arranged around, and it is worth reproducing
 yourself once, because reading about it does not produce the same alarm as watching it.
@@ -89,7 +89,7 @@ def main() -> int:
     print("\n" + "=" * 78)
 
     # The positive control. Without a predicate you KNOW must match nothing, a filter that is
-    # silently dropped and a filter that is correctly applied can return the same count.
+    # dropped without an error and a filter that is correctly applied can return the same count.
     if nonexistent != 0:
         print("INCONCLUSIVE: the no-match probe returned rows, so filtering is not being applied")
         print("              at all. Fix that before drawing conclusions from anything above.")

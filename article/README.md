@@ -17,38 +17,38 @@ text in the context of a project. But not everyone should have access to all inf
 project, let alone to projects outside their access level.
 
 We built such a system on Databricks: a RAG chain over a governed corpus, reachable from
-applications outside Databricks — for example, Microsoft Teams or a custom web interface like OpenWebUI — with access control per user. The
-catch is that RAG on the native AI Search (formerly Vector Search) does not come with a feature for
-row-level security. A blog about using filters gave us the inspiration to build it ourselves, and
-here we take a simplified version of that approach to show how it works.
+applications outside Databricks — for example, Microsoft Teams or a custom web interface like
+OpenWebUI — with access control per user. The catch is that RAG on the native AI Search (formerly
+Vector Search) does not come with a feature for row-level security. A blog about using filters gave
+us the inspiration to build it ourselves, and here we take a simplified version of that approach to
+show how it works.
 
-## AI Search for agents: build and serve
+## AI RAG agent and index development
 
-The AI RAG system consists of two different mechanisms, where one produces and one consumes a body
-of knowledge through an index.
+The AI RAG system consists of two parts: a build part, where data is prepared and agents are
+developed, and a serve part, where agents and indexes are deployed and called.
 
-The first is the **build** path. It runs on a schedule, it is a batch pipeline, and it is the only thing
-that ever writes the index. Documents arrive from SharePoint or a fileshare where their owners
-publish them, and the pipeline walks them through the medallion layers: landed raw, ingested to a
-table, parsed and chunked and enriched, then combined and embedded into an index. Each stage writes
-one governed Unity Catalog artefact, which is what makes any of it inspectable later. The agent
-itself is also built here — the chain, its tools, the retriever and the ACL are each versioned and
-registered, then deployed as one endpoint.
+The first is the **build** path. It runs on a schedule and it is a batch pipeline. Documents arrive
+from SharePoint or a fileshare where their owners publish them, and the pipeline walks them through
+the medallion layers: landed raw, ingested to a table, parsed and chunked and enriched, then
+combined and embedded into an index. Each stage writes one governed Unity Catalog artefact, which is
+what makes any of it inspectable later. The agent itself is also built here — the chain, its tools,
+the retriever and the ACL are each versioned and registered, then deployed as one endpoint.
 
 The second is the **serve** path. It is a live request path and it reads the index at inference
-time. A question arrives from
-Teams or a web UI, the deployed agent resolves who is asking, narrows retrieval to what that person
-may see, fetches from the index, and answers.
+time. A question arrives from Teams or a web UI, the deployed agent resolves who is asking, narrows
+retrieval to what that person may see, fetches from the index, and answers.
 
-![Build and serve, side by side](../diagrams/rendered/build-and-serve.png)
+![AI RAG agent and index development](../diagrams/rendered/build-and-serve.png)
 
-Because the ACL is enforced inside the agent at query time rather than baked into what gets
-indexed, one deployed agent serves every audience. There is no per-audience index and no copy of
-the corpus sitting outside Databricks. The trade is that the access decision now happens in code
-you wrote on the serve side, against metadata columns you chose on the build side.
+We want to enforce permissions at query time, inside the agent, rather than baking them into what
+gets indexed. This means you do not need separate indexes for different audiences: one deployed
+agent serves every audience, and no copy of the corpus sits outside Databricks. The trade is that
+the access decision now happens in code you wrote on the serve side, against metadata columns you
+chose on the build side.
 
 ## Row-level security on tables
-On regular tables, we can implement row level security easily. 
+On regular tables, we can implement row level security easily.
 Take the project data at a firm like the one above: hours, budgets, planning, all in tables, and
 each project team allowed to see only its own. Unity Catalog handles that case well. You attach a
 row filter and a column mask to a table, and every reader gets their own view of it. The filter is
@@ -73,12 +73,12 @@ not necessarily a filter that runs. `DESCRIBE TABLE EXTENDED` tells you it exist
 tells you it works.
 
 Individual filters attached to every table do not scale well, if your data platform contains
-thousands of tables. Attribute-based access control went generally available in May 2026 and fixes
+thousands of tables. Attribute-based access control went generally available in April 2026 and fixes
 that: you tag the data and attach a policy to a catalog or a schema, and every object carrying the
-tag is covered, including tables created next month by somebody who has never heard of your
-policy. `MATCH COLUMNS` finds the right column
-by tag rather than by name, so a table that spells it `team_code` instead of `project_group` is
-still covered. Coverage stops depending on anybody remembering.
+tag is covered, including tables created next month by somebody who has never heard of your policy.
+`MATCH COLUMNS` finds the right column by tag rather than by name, so a table that spells it
+`team_code` instead of `project_group` is still covered. Coverage stops depending on anybody
+remembering.
 
 The ABAC documentation has one pattern we now use everywhere. Tag everything
 `classification: unverified` by default at the catalog level, then write a policy that refuses
@@ -89,7 +89,7 @@ So far the platform is doing the work for you. Then you point a RAG pipeline at 
 and the picture changes: ABAC governs *tables*. Tag a table, embed its contents, and the index that
 results inherits the grants but not the policy.
 
-## The index: why do the row filters not come along?
+## The index does not inherit the filters
 
 An AI Search index is a Unity Catalog object and it has grants: somebody can be allowed to query it
 or not. What it does not have is row filters or column masks. Filtering an index is something you
@@ -102,9 +102,9 @@ application code fails however you happened to write it.
 
 A document travels through parsing, chunking, enrichment and embedding on its way to the index, and
 the security context does not reach the index. An embedding is a list of floats; whatever
-access control applied to the text it came from is not in there. The only thing that survives is
-what you deliberately wrote into metadata columns alongside it, which means your ACL can never be
-more expressive than the columns you thought to carry at index time. Get that wrong and the fix is
+access control applied to the text it came from is not in there. What arrives is what you
+deliberately wrote into metadata columns alongside it, which means your ACL can never be more
+expressive than the columns you thought to carry at index time. Get that wrong and the fix is
 a rebuild rather than a grant.
 
 The related problem is that metadata **is** content. If you index `created_by_email` or `web_url`
@@ -113,7 +113,7 @@ can read the chunk text. The ACL has to apply before any column comes back, not 
 chunk body does. A filter that protects the text and leaks the author list has not protected
 anything.
 
-![What the index does not inherit](../diagrams/rendered/governance-boundary.png)
+![Governance boundary: table to index](../diagrams/rendered/governance-boundary.png)
 
 ## Filters on AI Search
 
@@ -131,9 +131,9 @@ connector now exposes `_sharepoint_metadata` directly, which removes that join �
 it needs DBR 18 LTS, because on 17.3 the read still succeeds with every metadata field simply
 absent.
 
-Against a live index of 629 chunks, a filter naming a real column and a real value returned three
-rows, and the same query with a value that matches nothing returned zero. The predicate applies,
-and that second probe is what proves it: a filter you know must return nothing, returning nothing.
+Against a live index, a filter naming a real column and a real value returned rows, and the same
+query with a value that matches nothing returned zero. The predicate applies, and that second probe
+is what proves it: a filter you know must return nothing, returning nothing.
 
 Before any query goes out, we assert the filter's keys against the columns the index actually has:
 
@@ -162,15 +162,15 @@ rule that only holds on one backend is not much of a rule.
 > asserts against the index contract instead of trusting the filter, and why a filter that must
 > return nothing is worth running on every deploy.
 
-## Building the ACL yourself: four decisions
+## Building the ACL: four decisions
 
 If the platform will not enforce it, the application must. That sounds like a small amount of
 code, and it is: the ACL resolves per request from the caller's own token, the groups come from
 SCIM using their credentials so nobody can claim a membership they do not have, and the result is
 passed explicitly into every retrieval rather than picked up from ambient state. Perhaps forty
-lines. Almost every line of it is a decision about how to fail.
+lines. Almost every line of it is a deliberate choice.
 
-Four decisions in that layer mattered more than the mechanism:
+Four of those decisions shaped the rest:
 
 - **Empty means nothing, not everything.** A caller with no mapped groups retrieves nothing, and a
   deployment where nobody has configured the mapping yet serves nothing to everybody. Empty is the
@@ -183,25 +183,23 @@ Four decisions in that layer mattered more than the mechanism:
   we shipped at Witteveen+Bos: the group's name carries the entitlement, which needs no
   configuration at all. It holds as long as one group maps to one thing. Once a caller's access is
   a combination of metadata columns — a source system *and* a site *and* a sensitivity — the name
-  has to encode a tuple, and a declared table is the mechanism that survives. Then an unmapped
+  has to encode a tuple, and a declared table is the mechanism that scales. Then an unmapped
   group grants nothing, and adding a source system is a reviewable change to a config value.
 
-![How the ACL resolves, per request](../diagrams/rendered/acl-flow.png)
+![ACL resolution per request](../diagrams/rendered/acl-flow.png)
 
 > [!WARNING]
-> Each of those four has an alternative that looks reasonable in review.
+> Each of those four has an alternative a reviewer would wave through.
 >
-> **A permissive default** serves the whole corpus the first time somebody forgets the variable,
-> and on deploy day that is indistinguishable from correct operation.
-> **A malformed mapping degrading to empty** gives you the same symptom as a correctly empty one —
-> no rows — and you will spend an afternoon blaming permissions.
-> **Answering an unentitled caller from general knowledge** produces something that reads exactly
-> like a successful retrieval.
-> **Parsing a group's name loosely** hands access to anyone who can create a group: name one to
-> match and the corpus opens. Measured against real workspace groups, a rule that read an
-> entitlement out of any group whose name contained a known token turned an administration group
-> into a claim on a source system. A naming convention is a fine mechanism, but it has to be an
-> exact match against names only your identity process can mint — never a substring test.
+> - **A permissive default** serves the whole corpus the first time somebody forgets the variable.
+> - **A malformed mapping degrading to empty** has the same symptom as a correctly empty one.
+> - **Answering from general knowledge** reads exactly like a successful retrieval.
+> - **Parsing a group's name loosely** hands access to anyone who can create a group.
+
+That last one is not hypothetical. Measured against real workspace groups, a rule that read an
+entitlement out of any group whose name contained a known token turned an administration group into
+a claim on a source system. A naming convention is a fine mechanism, but it has to be an exact match
+against names only your identity process can mint — never a substring test.
 
 
 We did not invent the array-overlap approach behind this. We built a per-chunk ACL like it before,
@@ -229,11 +227,68 @@ except Exception:
     return Entitlements.nobody(principal)   # a routine error removes it
 ```
 
-Both are one line and both look reasonable in a review. The first makes safety depend on no
+Both are one line and neither would stop a reviewer. The first makes safety depend on no
 document ever carrying that sentinel string in its ACL column, which is a convention enforced by
 nothing and one rename away from failing. We fail closed.
 
-## On-behalf-of: whose permissions is the agent using?
+### Should the ACL be a Unity Catalog function?
+
+If Unity Catalog is the thing that governs, the obvious question is whether this logic belongs
+inside it as a registered function rather than in the agent's Python. It turns out not to be
+possible.
+
+A Python UDF registered in Unity Catalog cannot make outbound network requests. On a serverless SQL
+warehouse the documentation is explicit that a query attempting one **hangs indefinitely** rather
+than failing. Our ACL resolves group membership over SCIM, so the identity half cannot move into a
+function at all without a preview networking feature, a batch UDF and a service credential. A
+request that hangs forever is a worse failure than one that raises.
+
+The filter-building half could move, and still should not. A Unity Catalog function is not enforced
+by the index: the agent has to call it and then apply the result itself, exactly as it does now, so
+you buy indirection rather than enforcement — and pay a round-trip per request, harder unit tests,
+and a function version to keep in step with an agent version. Databricks documents the application
+route as the intended one: row and column level permissions are not supported on an index, and you
+implement your own application-level ACL using the filter API.
+
+> [!WARNING]
+> **`is_account_group_member()` in a function body may not evaluate the person you think.**
+> Statements there run with the **owner's** privileges and the function resolves the **session**
+> user, so on any path falling back to the endpoint's credentials it becomes the service principal.
+
+The documentation does not describe that function's behaviour under model serving on-behalf-of at
+all, so we treat caller resolution there as unverified rather than guaranteed. The same reasoning
+rules out exposing the ACL as an agent tool: a tool is something the model chooses to call, and this
+has to run on every request, before retrieval, whether the model would have picked it or not.
+
+### Is the entitlement mapping its own governed table?
+
+The four decisions above put entitlements in a declared mapping, and in our build that mapping is a
+configuration value — which is why "adding a source system is a reviewable change" means a pull
+request. A Unity Catalog table is the better home for it, with one condition that decides the whole
+design.
+
+As a table it gains what a config value cannot have: `MODIFY` granted separately from the
+deployment path, Delta history answering who changed an entitlement and when, lineage, and audit
+events in `system.access.audit`. Authorisation data is exactly the kind of data you later have to
+answer questions about.
+
+The condition is which identity reads it. Read the mapping under the caller's own token and the
+caller needs `SELECT` on it — so any user can enumerate every group's entitlements, which is a
+disclosure about the security model itself and strictly worse than the config value it replaced. So
+the request path uses two identities deliberately: the caller's token resolves the caller's own
+group membership, and the endpoint's service principal reads the mapping. Cache it in process with
+a bounded refresh, and define what happens when the read fails, because the ACL now depends on a
+data path being up before it can authorise anything. Fail closed there too.
+
+> [!NOTE]
+> Do not reach for a row filter on the mapping table to solve the disclosure problem. Time travel
+> and cloning fail on a table with an active ABAC policy, so you would spend the audit history that
+> motivated the table in the first place.
+>
+> This one is a design conclusion rather than a measurement. Everything else in this article we ran;
+> the mapping in our build is still the config value.
+
+## On-behalf-of: which identity reaches Unity Catalog
 
 All of that assumes the agent knows who is asking, which is worth checking. The agent runs
 somewhere — a serving endpoint, an app, a container — and that thing has an identity of its own.
@@ -285,26 +340,22 @@ schema it creates and the agent can otherwise register into `dev_<user>_schema` 
 index sits in the shared one.
 
 > [!WARNING]
-> Every prerequisite in this section fails without an error message.
->
-> Below `mlflow` 2.22.1, OBO is off by default and the agent answers as the endpoint. If
-> `databricks-ai-bridge` is missing from the logged requirements, the model loads and falls back to
-> its own identity. Each of the four Entra settings breaks the token exchange with an error that
-> names something else. And retrieval pointed at the wrong schema returns zero rows, which looks
-> exactly like a correctly denied caller.
->
-> Assert on the identity that produced the answer, not on whether an answer arrived. A test that
-> checks for a response passes identically whether every caller is being served their own
-> permissions or the deployer's.
+> **Every prerequisite in this section fails without an error message.** Below `mlflow` 2.22.1 OBO
+> is off by default; a missing `databricks-ai-bridge` drops the agent to its own identity; each of
+> the four Entra settings breaks the exchange with an error that names something else.
 
-## Testing it: how do you know the filter did anything?
+Retrieval pointed at the wrong schema returns zero rows too, which looks exactly like a correctly
+denied caller. So assert on the identity that produced the answer, not on whether an answer
+arrived — a test that checks for a response passes identically whether every caller is being served
+their own permissions or the deployer's.
+
+## Measuring the filter
 
 None of this is worth much on the strength of a code review, so we measured it. A controlled
 experiment against the deployed endpoint: same user, same question, same registered model version,
-with the group-to-entitlement mapping as the only
-variable. Mapped to the caller's real group, retrieval returned five rows and a grounded answer
-citing the corpus. Mapped to a group nobody is in, it returned zero rows and an explained denial,
-and the model was never called.
+with the group-to-entitlement mapping as the only variable. Mapped to the caller's real group,
+retrieval returned five rows and a grounded answer citing the corpus. Mapped to a group nobody
+is in, it returned zero rows and an explained denial, and the model was never called.
 
 `obo_active` reported `True` in both runs, which isolates the entitlement filter from the identity
 plumbing: the caller was correctly identified either way and only their entitlement changed.
@@ -349,22 +400,21 @@ sequenceDiagram
 The agent reports which enforcement produced each answer, the group grant or Unity Catalog, so a
 citation can be traced back to the permission that admitted it.
 
-## Genie as a second path
+## Genie as a second retrieval path
 
 Not every question is a document question. Asked how many hours were booked per project group, a
 similarity search over prose returns passages, and no number of passages adds up to a total. So the
 agent has a second retrieval path, where the platform does the enforcing again, and the model routes
-between them. Questions about decisions and
-rationale go to similarity search over prose; questions about counts and totals go to a Genie
-space, which generates SQL against governed tables. Both run on the caller's credentials, so the
-identity story is the same on either branch
-and the model cannot route its way to a privileged path. What differs is who enforces. On the
-prose branch it is our declared grants table, so provenance means "one of your groups admitted this
-passage". On the data branch it is Unity Catalog, so provenance means "Unity Catalog evaluated
-you", with the generated SQL and a statement id as evidence.
+between them. Questions about decisions and rationale go to similarity search over prose; questions
+about counts and totals go to a Genie space, which generates SQL against governed tables. Both run
+on the caller's credentials, so the identity story is the same on either branch and the model cannot
+route its way to a privileged path. What differs is who enforces. On the prose branch it is our
+declared grants table, so provenance means "one of your groups admitted this passage". On the data
+branch it is Unity Catalog, so provenance means "Unity Catalog evaluated you", with the generated
+SQL and a statement id as evidence.
 
-We tested whether the caller's identity survives the hops into Genie, and it does on every path we
-could construct. Query history attributes the statement to the human on the interactive path,
+We tested whether the caller's identity holds across the hops into Genie, and it does on every path
+we could construct. Query history attributes the statement to the human on the interactive path,
 through the agent under OBO, and from Teams — which adds a third hop through Entra and the token
 exchange. In each case `executed_as_user_name` names the person, not the serving endpoint's service
 principal.
@@ -372,7 +422,7 @@ principal.
 Both branches, and the identity work in front of them, on one page — read it by border colour
 before you read it by arrow:
 
-![The whole system, coloured by who enforces](../diagrams/rendered/architecture.png)
+![Row-level security in a Databricks RAG pipeline](../diagrams/rendered/architecture.png)
 
 A service principal calling the same space over the API gets its own identity evaluated, honestly,
 as itself. No permissions are laundered. Under user authorisation the caller's own grants apply and
@@ -380,25 +430,22 @@ the endpoint needs no standing grant of its own, so `SystemAuthPolicy` declares 
 and `UserAuthPolicy` carries the rest.
 
 > [!WARNING]
-> On a non-interactive path the service principal is the whole of your access control. Every human
-> calling through that integration sees the union of what the SP was granted, with no
-> differentiation between them — a broadly granted SP flattens every caller to the same access,
-> correctly. So the question a review should ask is what that service principal is granted, not
-> whether row-level security is enabled.
->
-> There is a configuration route to the same place. Databricks documents that granting an SP access
-> to a Genie space also requires granting its underlying tables and warehouse. Follow that guidance
-> for an agent and the endpoint holds a standing grant on the data, so every caller sees the union
-> of what the endpoint may read. Under user authorisation you do not need those grants; do not add
-> them.
->
-> **The curated table list is not a boundary either, even though our own result looks like one.**
-> Genie refused four attempts to reach an off-list table and generated no SQL at all. That is prompt
-> scoping — a model declining to name a table it has not been shown — and it will change with a
-> model update and no release note. The vendor documents the opposite guarantee. Rely on Unity
-> Catalog grants, never on the curated list.
+> **On a non-interactive path the service principal is the whole of your access control.** Every
+> human calling through that integration sees the union of what it was granted, with no
+> differentiation. So a review of this path has to check the service principal's grants.
 
-## Where this is heading
+There is a configuration route to the same place. Databricks documents that granting an SP access to
+a Genie space also requires granting its underlying tables and warehouse. Follow that guidance for
+an agent and the endpoint holds a standing grant on the data, so every caller sees the union of what
+the endpoint may read. Under user authorisation you do not need those grants; do not add them.
+
+The curated table list is not a boundary either, even though our own result looks like one. Genie
+refused four attempts to reach an off-list table and generated no SQL at all. That is prompt scoping
+— a model declining to name a table it has not been shown — and it will change with a model update
+and no release note. The vendor documents the opposite guarantee. Rely on Unity Catalog grants,
+never on the curated list.
+
+## Platform features in preview
 
 Two Unity Catalog previews aim at the service principal problem and at writing one policy per
 group. Both are Beta, both need an account admin to enable them, and we have not run either in
@@ -416,16 +463,17 @@ agent may see less than the human it acts for" becomes expressible at the platfo
 implemented in the chain.
 
 > [!NOTE]
-> Both features are Beta, and context attributes do not yet cover every path. The documentation is
+> **Both features are Beta, and context attributes do not cover every path.** The documentation is
 > explicit that Genie does not set `request.is_on_behalf_of`, so the Genie path described earlier
-> is outside the policy. A personal access token does not set it either, and the built-in
-> `databricks-cli` client id is shared, so an agent using it cannot be told apart from a person at
-> a terminal. Register your own OAuth application if you want to govern a specific one.
->
-> On identity attributes, mind the polarity of the condition. The functions return `false` both
-> when the user has no value and when the key does not exist, so write the condition such that
-> `false` restricts. The other way round, every user your SCIM sync has not populated sees the
-> data unmasked.
+> sits outside the policy.
+
+A personal access token does not set it either, and the built-in `databricks-cli` client id is
+shared, so an agent using it cannot be told apart from a person at a terminal. Register your own
+OAuth application if you want to govern a specific one.
+
+On identity attributes, mind the polarity of the condition. The functions return `false` both when
+the user has no value and when the key does not exist, so write the condition such that `false`
+restricts. The other way round, every user your SCIM sync has not populated sees the data unmasked.
 
 There is a third option, and it is available today rather than in Beta: serve the vectors from
 pgvector on Lakebase instead of AI Search. The ACL then goes back to being a row-level security
@@ -438,7 +486,7 @@ received `confidential` rows. On pgvector the same filter is a hard "column does
 gives notice, and it is equally broken. A rule that only holds on the backend that gives notice is
 not a rule. What changes is that you find out.
 
-## What I would tell a team starting this
+## Recommendations
 
 Know which side of the boundary you are on. A governed table is enforced by the platform and a
 vector index is enforced by you, and those deserve different amounts of confidence. Design for what
@@ -449,7 +497,7 @@ principal is granted.
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can carry into the index:
 
-![Which enforcement path to use](../diagrams/rendered/decision-tree.png)
+![Enforcement path selection](../diagrams/rendered/decision-tree.png)
 
 Then verify by breaking. Point the filter at something that must return nothing and watch it
 return nothing. Revoke the grant and watch the answer disappear. Set the group to one nobody is
@@ -459,10 +507,10 @@ have not seen it work.
 For me the honest summary is that knowing how we wanted the system to behave was the easy part.
 Making it behave that way, and verifying when it did not, was hard. The mechanisms are no easier:
 Unity Catalog resolves per caller, OBO propagates through three hops including Teams, and filters
-apply — but each of those took work to get right, and more work to prove. What we measured is not
-that they can work. It is that they were still working when we looked.
+apply — but each of those took work to get right, and more work to prove. What we measured is that
+they were still working when we looked.
 
-## Try it yourself
+## Runnable examples
 
 The [`examples/`](../examples/) directory has runnable demonstrations of each failure described above,
 and [`diagrams/`](../diagrams/) holds the architecture as editable draw.io sources.
@@ -478,11 +526,10 @@ and [`diagrams/`](../diagrams/) holds the architecture as editable draw.io sourc
 
 ## In closing
 
-Row-level security over a RAG agent is not a feature you switch on. It is a series of small
-decisions about how to fail, taken weeks apart on either side of the index, and most of them look
-reasonable in a review. Unity Catalog does its part per caller and OBO carries the identity through
-three hops; the rest is yours. So build the control, and build the evidence that it is still
-running.
+Row-level security over a RAG agent is a series of small design decisions that all have to work
+together smoothly, rather than a feature you switch on. Unity Catalog does its part per caller and OBO
+carries the identity through three hops. Take time to map out how you want your agent to behave at
+every step. And build thorough validations into your testing cycle.
 
 ## Curious how other teams handle access control on AI applications?
 

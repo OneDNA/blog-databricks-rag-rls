@@ -1,7 +1,7 @@
 """Caller's groups to entitlements, via a declared table.
 
 This is the ACL itself: the layer that decides what one caller may retrieve. It is short, and
-almost every line of it is a decision about how to fail.
+almost every line of it is a deliberate choice.
 
     $ python 03_acl_from_groups.py
 
@@ -56,7 +56,7 @@ class GroupGrant:
             unknown = set(raw) - {"source_systems", "site_ids", "sensitivity_labels"}
             if unknown:
                 # Refuse rather than ignore. A typo'd key ("sensitivity" for
-                # "sensitivity_labels") would otherwise silently drop a restriction, and the
+                # "sensitivity_labels") would otherwise drop a restriction with no error, and the
                 # result reads as a working grant.
                 raise ValueError(f"unknown grant keys {sorted(unknown)}")
             return cls(
@@ -75,8 +75,8 @@ def parse_group_grants(raw: Any) -> dict[str, GroupGrant]:
     opposite of what a permissive default would do.
 
     Malformed, however, RAISES. An empty table and a broken table produce the same visible
-    symptom -- no results -- so a broken one failing silently costs you hours of blaming
-    permissions.
+    symptom -- no results -- so a broken one failing without an error sends you looking at permissions
+    instead.
     """
     if not raw:
         return {}
@@ -100,7 +100,7 @@ class Entitlements:
     """A value object with no ambient state.
 
     Passed explicitly into every retrieval, so a code path that forgot to supply them cannot
-    silently inherit somebody else's.
+    inherit somebody else's without anything reporting it.
     """
 
     principal: str
@@ -188,7 +188,7 @@ TYPICAL_WORKSPACE_GROUPS = [
 
 
 # --------------------------------------------------------------------------------------------
-# FAIL OPEN vs FAIL CLOSED -- the single most transferable decision in this file.
+# FAIL OPEN vs FAIL CLOSED.
 #
 # The shape below is not hypothetical: it is a pattern we have seen in a production GenAI
 # platform, where entitlement resolution returns a permissive sentinel on ANY error, including

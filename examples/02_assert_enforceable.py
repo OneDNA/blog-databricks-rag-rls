@@ -1,8 +1,8 @@
-"""The guard that turns silent failure #1 into a loud one.
+"""The guard that turns failure #1 into a raised error.
 
 ``assert_enforceable`` refuses to hand back a filter the index cannot apply. It is four lines of
-logic and it is the most important four lines in the retrieval path, because the failure it
-prevents is the only one an ACL must never have: a predicate that is accepted and then ignored.
+logic, and it prevents the failure an ACL must never have: a predicate that is accepted and then
+ignored.
 
     $ python 02_assert_enforceable.py
 
@@ -37,7 +37,7 @@ def assert_enforceable(filters: dict[str, object]) -> None:
     if unenforceable:
         raise PermissionError(
             f"entitlement axes {unenforceable} are not columns of the index source "
-            f"{list(ACL_FILTER_COLUMNS)}, so filtering on them would be silently ignored. "
+            f"{list(ACL_FILTER_COLUMNS)}, so filtering on them would be ignored without an error. "
             "Add the column to the index (a rebuild) or stop emitting the predicate; "
             "serving unfiltered results is not an option."
         )
@@ -101,7 +101,7 @@ def main() -> int:
         # Unguarded: builds a filter regardless. The danger is that this NEVER fails.
         unguarded = build_filter_unguarded(entitlement)
         bad_axes = sorted(set(unguarded) - set(ACL_FILTER_COLUMNS))
-        unguarded_note = "built (silently unsafe)" if bad_axes else "built"
+        unguarded_note = "built (unsafe, and it does not raise)" if bad_axes else "built"
 
         try:
             build_filter_guarded(entitlement)

@@ -74,7 +74,7 @@ def test_malformed_grants_table_raises_and_does_not_degrade_to_empty():
 
 
 def test_unknown_grant_key_is_refused_not_ignored():
-    """A typo'd axis name would otherwise silently drop a restriction."""
+    """A typo'd axis name would otherwise drop a restriction with no error."""
     with pytest.raises(ValueError, match="unknown grant keys"):
         GroupGrant.parse({"sensitivity": ["internal"]})  # should be sensitivity_labels
 
@@ -96,7 +96,7 @@ def test_unmapped_group_alongside_a_mapped_one_adds_nothing():
 
 
 # ==============================================================================================
-# assert_enforceable: the filter that would be silently ignored.
+# assert_enforceable: the filter that would be ignored without an error.
 # ==============================================================================================
 
 
@@ -110,7 +110,7 @@ def test_unmapped_group_alongside_a_mapped_one_adds_nothing():
     ],
 )
 def test_unenforceable_axes_are_refused(filters):
-    with pytest.raises(PermissionError, match="silently ignored"):
+    with pytest.raises(PermissionError, match="ignored without an error"):
         guard.assert_enforceable(filters)
 
 
@@ -203,7 +203,7 @@ def test_filter_on_a_missing_column_returns_everything():
     """Documents the behaviour the guard exists to prevent. If this ever fails, celebrate."""
     everything = index.fake_similarity_search(None)
     typo = index.fake_similarity_search({"sensitivty": ["internal"]})
-    assert len(typo) == len(everything), "the predicate should have been silently dropped"
+    assert len(typo) == len(everything), "the predicate should have been dropped with no error"
 
 
 def test_filter_on_a_real_column_actually_constrains():
