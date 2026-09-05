@@ -11,9 +11,9 @@ een verschillend antwoord omdat ze verschillende dingen mogen zien? Elke organis
 AI-assistent op haar eigen documenten zet, loopt hier vroeg of laat tegenaan.
 
 Zo'n systeem hebben we op Databricks gebouwd: een RAG-keten over een beheerd corpus, bereikbaar
-vanuit applicaties buiten Databricks, met toegangscontrole per gebruiker. Het addertje is dat RAG op
-de native AI Search (voorheen Vector Search) geen voorziening voor row-level security heeft. Dus
-hebben we het gebouwd, en daarna gemeten of het standhield.
+vanuit applicaties buiten Databricks, met toegangscontrole per gebruiker. RAG op de native AI Search
+(voorheen Vector Search) heeft geen voorziening voor row-level security, dus hebben we het zelf
+gebouwd, en grondig getest.
 
 ## AI RAG-agent en indexontwikkeling
 
@@ -51,12 +51,13 @@ EXTENDED` vertelt je dát het bestaat; het veranderen vertelt je dat het wérkt.
 
 Attribute-based access control is sinds april 2026 GA en schaalt dit: tag de data, hang een policy
 aan een catalog of schema, en elk object met die tag valt eronder — inclusief tabellen die volgende
-maand worden aangemaakt door iemand die nog nooit van je policy heeft gehoord.
+maand worden aangemaakt door iemand die niet weet dat de policy bestaat.
 
 ## De index neemt de filters niet over
 
-Een AI Search-index is een Unity Catalog-object met grants, maar er zitten geen row filters of column
-masks op. Een index filteren is een parameter die je vanuit applicatiecode meegeeft.
+Een AI Search-index is een Unity Catalog-object met grants, dus je kunt bevragen toestaan of
+weigeren. Er zitten geen row filters en geen column masks op. Een index filteren is een parameter
+die je vanuit applicatiecode meegeeft.
 
 ![Governance-grens: tabel naar index](../../diagrams/rendered/governance-boundary.png)
 

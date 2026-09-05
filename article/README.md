@@ -18,10 +18,9 @@ project, let alone to projects outside their access level.
 
 We built such a system on Databricks: a RAG chain over a governed corpus, reachable from
 applications outside Databricks — for example, Microsoft Teams or a custom web interface like
-OpenWebUI — with access control per user. The catch is that RAG on the native AI Search (formerly
-Vector Search) does not come with a feature for row-level security. A blog about using filters gave
-us the inspiration to build it ourselves, and here we take a simplified version of that approach to
-show how it works.
+OpenWebUI — with access control per user. RAG on the native AI Search (formerly Vector Search) has
+no feature for row-level security, so we built it ourselves, using a blog about filters as the
+starting point. Here we take a simplified version of that approach to show how it works.
 
 ## AI RAG agent and index development
 
@@ -31,9 +30,9 @@ developed, and a serve part, where agents and indexes are deployed and called.
 The first is the **build** path. It runs on a schedule and it is a batch pipeline. Documents arrive
 from SharePoint or a fileshare where their owners publish them, and the pipeline walks them through
 the medallion layers: landed raw, ingested to a table, parsed and chunked and enriched, then
-combined and embedded into an index. Each stage writes one governed Unity Catalog artefact, which is
-what makes any of it inspectable later. The agent itself is also built here — the chain, its tools,
-the retriever and the ACL are each versioned and registered, then deployed as one endpoint.
+combined and embedded into an index. Each stage writes one governed Unity Catalog artefact, so you
+can inspect every step later. The agent is built here too: the chain, its tools, the retriever and
+the ACL are each versioned and registered, then deployed as one endpoint.
 
 The second is the **serve** path. It is a live request path and it reads the index at inference
 time. A question arrives from Teams or a web UI, the deployed agent resolves who is asking, narrows
@@ -75,7 +74,8 @@ runs. `DESCRIBE TABLE EXTENDED` tells you it exists; changing it tells you it wo
 Individual filters attached to every table do not scale well, if your data platform contains
 thousands of tables. Attribute-based access control went generally available in April 2026 and fixes
 that: you tag the data and attach a policy to a catalog or a schema, and every object carrying the
-tag is covered, including tables created next month by somebody who has never heard of your policy.
+tag is covered, including tables created next month by somebody who does not know the policy
+exists.
 `MATCH COLUMNS` finds the right column by tag rather than by name, so a table that spells it
 `team_code` instead of `project_group` is still covered. Coverage stops depending on anybody
 remembering.
@@ -91,9 +91,9 @@ results inherits the grants but not the policy.
 
 ## The index does not inherit the filters
 
-An AI Search index is a Unity Catalog object and it has grants: somebody can be allowed to query it
-or not. What it does not have is row filters or column masks. Filtering an index is something you
-pass in the query, as a parameter, from application code.
+An AI Search index is a Unity Catalog object with grants, so you can allow or deny querying it. It
+has no row filters and no column masks. Filtering an index is a parameter you pass in the query,
+from application code.
 
 Access control moves from something the platform enforces to something your code implements. In
 principle that is just as strong: the filter still runs, and the rows still come back scoped. In
@@ -119,21 +119,19 @@ anything.
 
 So you write the filter yourself and pass it with the query. In our example the index carries three
 metadata columns for this — `source_system`, `site_id` and `sensitivity` — and a query names the
-values the caller is allowed to see. Those three are not natural properties of a document. They
-exist only because the access requirement demanded them, and picking them is a design decision
-taken at index time, not a detail.
+values the caller is allowed to see. Those three columns exist because the access requirement
+needed them, and you pick them at index time.
 
-Which makes them a pipeline prerequisite rather than a retrieval concern. The values usually have
-to come from the source system itself, so the build side has to be able to reach them before the
-serve side can filter on anything. At Witteveen+Bos we pulled the SharePoint metadata over the
+That makes them a pipeline prerequisite rather than a retrieval concern. The values usually come
+from the source system, so the build side has to reach them before the serve side can filter on
+anything. At Witteveen+Bos we pulled the SharePoint metadata over the
 Graph API as a separate step and joined it onto the chunks later. The Databricks SharePoint
-connector now exposes `_sharepoint_metadata` directly, which removes that join — worth knowing that
-it needs DBR 18 LTS, because on 17.3 the read still succeeds with every metadata field simply
-absent.
+connector now exposes `_sharepoint_metadata` directly, which removes that join. It needs DBR 18
+LTS: on 17.3 the read still succeeds, with every metadata field absent.
 
 Against a live index, a filter naming a real column and a real value returned rows, and the same
-query with a value that matches nothing returned zero. The predicate applies, and that second probe
-is what proves it: a filter you know must return nothing, returning nothing.
+query with a value that matches nothing returned zero. The second query is the one that proves the
+predicate applies.
 
 Before any query goes out, we assert the filter's keys against the columns the index actually has:
 
@@ -157,7 +155,7 @@ rule that only holds on one backend is not much of a rule.
 > [!WARNING]
 > **A filter naming a column the index does not have is ignored.** It does not raise and it does
 > not warn — it stops constraining. Rename a column upstream, rebuild the index without a field,
-> or simply typo it, and the query still succeeds with a plausible row count and a well-sourced
+> or typo it, and the query still succeeds with a plausible row count and a well-sourced
 > answer. The caller receives every sensitivity label in the corpus. This is why the guard above
 > asserts against the index contract instead of trusting the filter, and why a filter that must
 > return nothing is worth running on every deploy.
@@ -285,8 +283,8 @@ data path being up before it can authorise anything. Fail closed there too.
 > and cloning fail on a table with an active ABAC policy, so you would spend the audit history that
 > motivated the table in the first place.
 >
-> This one is a design conclusion rather than a measurement. Everything else in this article we ran;
-> the mapping in our build is still the config value.
+> This one is a design conclusion rather than a measurement. Everything else here we ran; the
+> mapping in our build is still the config value.
 
 ## On-behalf-of: which identity reaches Unity Catalog
 

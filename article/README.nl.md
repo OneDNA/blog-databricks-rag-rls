@@ -18,10 +18,10 @@ te kunnen, laat staan bij projecten buiten zijn eigen toegangsniveau.
 
 Zo'n systeem hebben we op Databricks gebouwd: een RAG-keten over een beheerd corpus, bereikbaar
 vanuit applicaties buiten Databricks — bijvoorbeeld Microsoft Teams of een eigen webinterface zoals
-OpenWebUI — met toegangscontrole per gebruiker. Het addertje is dat RAG op de native AI Search
-(voorheen Vector Search) geen voorziening voor row-level security heeft. Een blog over het gebruik
-van filters gaf ons de inspiratie om het zelf te bouwen, en hier nemen we een vereenvoudigde versie
-van die aanpak om te laten zien hoe het werkt.
+OpenWebUI — met toegangscontrole per gebruiker. RAG op de native AI Search (voorheen Vector Search)
+heeft geen voorziening voor row-level security, dus hebben we het zelf gebouwd, met een blog over
+filters als vertrekpunt. Hier nemen we een vereenvoudigde versie van die aanpak om te laten zien hoe
+het werkt.
 
 ## AI RAG-agent en indexontwikkeling
 
@@ -31,10 +31,10 @@ worden ontwikkeld, en een serve-deel, waar agents en indexen worden uitgerold en
 Het eerste is het **build**-pad. Dat draait op een schema en is een batch-pipeline. Documenten komen
 binnen vanuit SharePoint of een fileshare waar hun eigenaren ze publiceren, en de pipeline loodst ze
 door de medallion-lagen: raw geland, ingelezen in een tabel, geparsed en gechunkt en verrijkt, en
-daarna gecombineerd en geëmbed tot een index. Elke stap schrijft één beheerd Unity Catalog-artefact,
-en dat is wat het later inspecteerbaar maakt. De agent zelf wordt hier ook gebouwd: de chain, de
-tools, de retriever en de ACL worden apart geversioneerd en geregistreerd, en daarna als één
-endpoint uitgerold.
+daarna gecombineerd en geëmbed tot een index. Elke stap schrijft één beheerd Unity
+Catalog-artefact, dus je kunt elke stap later inspecteren. De agent wordt hier ook gebouwd: de
+chain, de tools, de retriever en de ACL worden apart geversioneerd en geregistreerd, en daarna als
+één endpoint uitgerold.
 
 Het tweede is het **serve**-pad. Dat is een live requestpad en het leest de index op het moment van
 inferentie. Een vraag komt binnen vanuit Teams of een web-UI, de uitgerolde agent stelt vast wie het
@@ -77,7 +77,7 @@ EXTENDED` vertelt je dát het bestaat; het veranderen vertelt je dat het wérkt.
 Losse filters aan elke tabel hangen schaalt niet goed, als je dataplatform duizenden tabellen bevat.
 Attribute-based access control is sinds april 2026 GA en lost dat op: je tagt de data en hangt een
 policy aan een catalog of schema, waarna elk object met die tag eronder valt, inclusief tabellen die
-volgende maand worden aangemaakt door iemand die nog nooit van je policy heeft gehoord.
+volgende maand worden aangemaakt door iemand die niet weet dat de policy bestaat.
 `MATCH COLUMNS` vindt de juiste kolom op tag in plaats van op naam, dus een tabel die hem
 `team_code` noemt in plaats van `project_group` valt er nog steeds onder. Dekking hangt niet langer
 af van of iemand eraan denkt.
@@ -93,9 +93,9 @@ daaruit komt erft de grants, maar niet de policy.
 
 ## De index neemt de filters niet over
 
-Een AI Search-index ís een Unity Catalog-object en er zitten grants op: iemand mag hem bevragen of
-niet. Wat er niet op zit, zijn row filters of column masks. Een index filteren is iets dat je in de
-query meegeeft, als parameter, vanuit applicatiecode.
+Een AI Search-index is een Unity Catalog-object met grants, dus je kunt bevragen toestaan of
+weigeren. Er zitten geen row filters en geen column masks op. Een index filteren is een parameter
+die je in de query meegeeft, vanuit applicatiecode.
 
 Toegangscontrole verschuift van iets dat het platform afdwingt naar iets dat jouw code
 implementeert. In principe is dat even sterk: het filter draait nog steeds, en de rijen komen nog
@@ -121,22 +121,19 @@ lekt, heeft niets beschermd.
 
 Dus schrijf je het filter zelf en geef je het mee met de query. In ons voorbeeld draagt de index
 daarvoor drie metadatakolommen — `source_system`, `site_id` en `sensitivity` — en een query noemt de
-waarden die de aanroeper mag zien. Die drie zijn geen natuurlijke eigenschappen van een document.
-Ze bestaan alleen omdat de toegangseis erom vroeg, en ze kiezen is een ontwerpbeslissing die je bij
-het indexeren neemt, geen detail.
+waarden die de aanroeper mag zien. Die drie kolommen bestaan omdat de toegangseis ze nodig had, en
+je kiest ze bij het indexeren.
 
 Daarmee zijn ze een randvoorwaarde voor de pipeline en niet iets van de retrieval. De waarden moeten
 meestal uit het bronsysteem zelf komen, dus de build-kant moet erbij kunnen voordat de serve-kant
 ergens op kan filteren. Bij Witteveen+Bos haalden we de SharePoint-metadata als aparte stap over de
 Graph API op en joinden die later op de chunks. De Databricks SharePoint-connector stelt inmiddels
-`_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt — het is goed om te weten dat
-dat DBR 18 LTS vereist, want op 17.3 slaagt de read nog steeds, maar zonder ook maar één
-metadataveld.
+`_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt. Dat vereist DBR 18 LTS: op
+17.3 slaagt de read nog steeds, maar zonder metadatavelden.
 
 Tegen een live index gaf een filter op een echte kolom met een echte waarde rijen terug, en
-dezelfde query met een waarde die nergens op matcht nul. Het predicaat wordt toegepast, en die
-tweede meting is het bewijs: een filter waarvan je weet dat het niets mag opleveren, dat niets
-oplevert.
+dezelfde query met een waarde die nergens op matcht nul. Die tweede query bewijst dat het predicaat
+wordt toegepast.
 
 Voordat er een query de deur uit gaat, toetsen we de keys van het filter tegen de kolommen die de
 index daadwerkelijk heeft:

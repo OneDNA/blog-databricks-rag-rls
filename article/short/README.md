@@ -11,9 +11,9 @@ different ones because they are allowed to see different things? Every organisat
 assistant on top of its own documents runs into this sooner or later.
 
 We built such a system on Databricks: a RAG chain over a governed corpus, reachable from
-applications outside Databricks, with access control per user. The catch is that RAG on the native
-AI Search (formerly Vector Search) has no feature for row-level security. So we built it, and then
-measured whether it held.
+applications outside Databricks, with access control per user. RAG on the native AI Search
+(formerly Vector Search) has no feature for row-level security, so we built it ourselves, and
+tested it thoroughly.
 
 ## AI RAG agent and index development
 
@@ -50,12 +50,13 @@ changing it tells you it works.
 
 Attribute-based access control went GA in April 2026 and scales this: tag the data, attach a policy
 to a catalog or schema, and every object carrying the tag is covered — including tables created next
-month by somebody who has never heard of your policy.
+month by somebody who does not know the policy exists.
 
 ## The index does not inherit the filters
 
-An AI Search index is a Unity Catalog object with grants, but it has no row filters and no column
-masks. Filtering an index is a parameter you pass from application code.
+An AI Search index is a Unity Catalog object with grants, so you can allow or deny querying it. It
+has no row filters and no column masks. Filtering an index is a parameter you pass from application
+code.
 
 ![Governance boundary: table to index](../../diagrams/rendered/governance-boundary.png)
 
