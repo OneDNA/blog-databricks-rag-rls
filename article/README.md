@@ -187,7 +187,7 @@ Four decisions in that layer shaped the rest:
 ![ACL resolution per request](../diagrams/rendered/acl-flow.png)
 
 > [!WARNING]
-> Each of those four has an alternative that fails open.
+> Each of those four has an alternative that grants access instead of refusing it.
 >
 > - **A permissive default** serves the whole corpus the first time somebody forgets the variable.
 > - **A malformed mapping degrading to empty** has the same symptom as a correctly empty one.
@@ -227,7 +227,7 @@ except Exception:
 
 Both are one line and neither would stop a reviewer. The first makes safety depend on no
 document ever carrying that sentinel string in its ACL column, which is a convention enforced by
-nothing and one rename away from failing. We fail closed.
+nothing and one rename away from failing. We deny instead.
 
 ### Should the ACL be a Unity Catalog function?
 
@@ -276,7 +276,7 @@ disclosure about the security model itself and strictly worse than the config va
 the request path uses two identities deliberately: the caller's token resolves the caller's own
 group membership, and the endpoint's service principal reads the mapping. Cache it in process with
 a bounded refresh, and define what happens when the read fails, because the ACL now depends on a
-data path being up before it can authorise anything. Fail closed there too.
+data path being up before it can authorise anything. Deny there too.
 
 > [!NOTE]
 > Do not reach for a row filter on the mapping table to solve the disclosure problem. Time travel
@@ -488,7 +488,7 @@ not a rule. What changes is that you find out.
 
 Know which side of the boundary you are on. A governed table is enforced by the platform and a
 vector index is enforced by you, and those deserve different amounts of confidence. Design for what
-you can observe rather than for what the mechanism promises. Fail closed, and make "no entitlement"
+you can observe rather than for what the mechanism promises. Deny on error, and make "no entitlement"
 and "something broke" tell themselves apart. On any non-interactive path, review what the service
 principal is granted.
 
@@ -517,7 +517,7 @@ and [`diagrams/`](../diagrams/) holds the architecture as editable draw.io sourc
 | --- | --- |
 | [`01_index_has_no_rls.py`](../examples/01_index_has_no_rls.py) | what happens when a filter names a column the index lacks |
 | [`02_assert_enforceable.py`](../examples/02_assert_enforceable.py) | the guard, and the test that catches what it prevents |
-| [`03_acl_from_groups.py`](../examples/03_acl_from_groups.py) | SCIM groups to entitlements, failing closed |
+| [`03_acl_from_groups.py`](../examples/03_acl_from_groups.py) | SCIM groups to entitlements, denying on error |
 | [`04_obo_three_ways.py`](../examples/04_obo_three_ways.py) | the three credential providers side by side |
 | [`05_genie_per_caller.py`](../examples/05_genie_per_caller.py) | the governed-table contrast |
 | [`sql/row_filter_fixture.sql`](../examples/sql/row_filter_fixture.sql) | a reproducible RLS fixture with its negative tests |

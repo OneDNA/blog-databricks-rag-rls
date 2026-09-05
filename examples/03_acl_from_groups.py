@@ -32,7 +32,7 @@ class GroupGrant:
     """Deliberately additive: two groups each granting one source system give you both.
 
     Restriction is expressed by NOT granting, never by a negative rule. A deny that has to be
-    intersected with grants is the kind of logic that fails open when one side is empty.
+    intersected with grants is the kind of logic that grants everything when one side is empty.
     """
 
     source_systems: frozenset[str] = field(default_factory=frozenset)
@@ -146,7 +146,7 @@ class Entitlements:
 def build_filter(entitlements: Entitlements) -> dict[str, list[str]]:
     """Entitlements to an index filter. Raises on empty rather than returning a match-nothing filter.
 
-    Both fail closed, but raising makes the caller handle it deliberately -- and the decorator
+    Both refuse, but raising makes the caller handle it deliberately -- and the decorator
     below converts it into an empty result, so what the negative test observes is "no rows",
     not an error.
     """
@@ -187,7 +187,7 @@ TYPICAL_WORKSPACE_GROUPS = [
 
 
 # --------------------------------------------------------------------------------------------
-# FAIL OPEN vs FAIL CLOSED.
+# TWO ERROR POLICIES: GRANT ON ERROR, OR REFUSE ON ERROR.
 #
 # The shape below is not hypothetical: it is a pattern we have seen in a production GenAI
 # platform, where entitlement resolution returns a permissive sentinel on ANY error, including
@@ -202,7 +202,7 @@ TYPICAL_WORKSPACE_GROUPS = [
 OPEN_ACCESS_SENTINEL = "open access"
 
 
-def resolve_entitlements_fail_open(principal: str, token: str | None) -> list[str]:
+def resolve_entitlements_granting(principal: str, token: str | None) -> list[str]:
     """The shape to avoid. Note how reasonable the except block looks in isolation."""
     try:
         if not token:
@@ -213,7 +213,7 @@ def resolve_entitlements_fail_open(principal: str, token: str | None) -> list[st
         return [OPEN_ACCESS_SENTINEL]
 
 
-def resolve_entitlements_fail_closed(principal: str, token: str | None) -> Entitlements:
+def resolve_entitlements_refusing(principal: str, token: str | None) -> Entitlements:
     """The same function, with the opposite answer to the same question."""
     try:
         if not token:
@@ -268,7 +268,7 @@ def main() -> int:
     for label, groups in callers:
         ent = Entitlements.from_groups(label, groups, grants)
         if ent.is_empty:
-            print(f"  {label:<34} -> NOTHING RETRIEVABLE (fail closed)")
+            print(f"  {label:<34} -> NOTHING RETRIEVABLE (refused)")
         else:
             print(f"  {label:<34} -> {build_filter(ent)}")
 
@@ -304,22 +304,22 @@ def main() -> int:
     print("\n  An ACL must not be a function of a string somebody else controls.")
 
     print("\n" + "=" * 82)
-    print("\nFAIL OPEN vs FAIL CLOSED -- the same three inputs, two error policies:\n")
-    print(f"  {'token':<24} {'fail-open returns':<28} fail-closed returns")
+    print("\nTWO ERROR POLICIES -- the same three inputs:\n")
+    print(f"  {'token':<24} {'granting returns':<28} refusing returns")
     print(f"  {'-' * 24} {'-' * 28} {'-' * 24}")
     for label, token in [
         ("valid", "valid"),
         ("expired (401 from SCIM)", "expired"),
         ("absent entirely", None),
     ]:
-        opened = resolve_entitlements_fail_open("user", token)
-        closed = resolve_entitlements_fail_closed("user", token)
+        opened = resolve_entitlements_granting("user", token)
+        closed = resolve_entitlements_refusing("user", token)
         closed_desc = "NOTHING" if closed.is_empty else sorted(closed.source_systems)
         print(f"  {label:<24} {str(opened):<28} {closed_desc}")
 
     print()
     print("  Rows two and three are the entire argument. An expired token is a ROUTINE event --")
-    print("  it happens to real users every day -- and under the fail-open policy it WIDENS")
+    print("  it happens to real users every day -- and under the granting policy it WIDENS")
     print("  access rather than removing it.")
     print()
     print("  Safety then rests on no document ever carrying the sentinel string in its ACL")

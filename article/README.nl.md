@@ -193,7 +193,7 @@ Vier beslissingen in die laag bepaalden de rest:
 ![ACL-resolutie per request](../diagrams/rendered/acl-flow.png)
 
 > [!WARNING]
-> Van elk van die vier bestaat een alternatief dat open faalt.
+> Van elk van die vier bestaat een alternatief dat toegang geeft in plaats van weigert.
 >
 > - **Een permissieve default** serveert het hele corpus zodra iemand de variabele vergeet.
 > - **Een kapotte mapping die naar leeg degradeert** heeft hetzelfde symptoom als een terecht lege.
@@ -236,8 +236,8 @@ except Exception:
 
 Allebei één regel en allebei zouden ze een review doorkomen. Bij de eerste hangt veiligheid
 ervan af dat geen enkel document die sentinel-string ooit in zijn ACL-kolom draagt, en dat is een
-afspraak die door niets wordt afgedwongen en die één hernoeming verwijderd is van falen. Wij falen
-gesloten.
+afspraak die door niets wordt afgedwongen en die één hernoeming verwijderd is van falen. Wij
+weigeren in plaats daarvan.
 
 ### Hoort de ACL een Unity Catalog-functie te zijn?
 
@@ -289,7 +289,7 @@ configuratiewaarde die het vervangt. Het requestpad gebruikt dus bewust twee ide
 van de aanroeper bepaalt het groepslidmaatschap van die aanroeper, en de service principal van het
 endpoint leest de mapping. Cache hem in het proces met een begrensde verversing, en bepaal wat er
 gebeurt als de read faalt, want de ACL hangt nu af van een datapad dat overeind staat voordat hij
-iets kan autoriseren. Ook daar: gesloten falen.
+iets kan autoriseren. Weiger ook daar.
 
 > [!NOTE]
 > Grijp niet naar een row filter op de mapping-tabel om het onthullingsprobleem op te lossen. Time
@@ -512,7 +512,7 @@ standhoudt op de backend die een signaal geeft, is geen regel. Wat verandert, is
 Weet aan welke kant van de grens je staat. Een beheerde tabel wordt door het platform afgedwongen en
 een vectorindex door jou, en die twee verdienen niet hetzelfde vertrouwen. Ga ervan uit dat elke
 fout stil is, want in deze stack zijn de meeste dat, en ontwerp op wat je kunt waarnemen in plaats
-van op wat het mechanisme belooft. Faal gesloten, en zorg dat "geen recht" en "er ging iets stuk" er
+van op wat het mechanisme belooft. Weiger bij fouten, en zorg dat "geen recht" en "er ging iets stuk" er
 van buiten niet hetzelfde uitzien. Review op elk niet-interactief pad waar de service principal toe
 gerechtigd is.
 
@@ -542,7 +542,7 @@ en [`diagrams/`](../diagrams/) bevat de architectuur als bewerkbare draw.io-bron
 | --- | --- |
 | [`01_index_has_no_rls.py`](../examples/01_index_has_no_rls.py) | het stille wegvallen: filter op een kolom die de index niet heeft |
 | [`02_assert_enforceable.py`](../examples/02_assert_enforceable.py) | de guard, en de test die vangt wat hij voorkomt |
-| [`03_acl_from_groups.py`](../examples/03_acl_from_groups.py) | SCIM-groepen naar rechten, fail-closed |
+| [`03_acl_from_groups.py`](../examples/03_acl_from_groups.py) | SCIM-groepen naar rechten, weigerend bij fouten |
 | [`04_obo_three_ways.py`](../examples/04_obo_three_ways.py) | de drie credential providers naast elkaar |
 | [`05_genie_per_caller.py`](../examples/05_genie_per_caller.py) | het contrast met de beheerde tabel |
 | [`sql/row_filter_fixture.sql`](../examples/sql/row_filter_fixture.sql) | een reproduceerbare RLS-fixture met zijn negatieve tests |

@@ -42,7 +42,7 @@ GRANTS = parse_group_grants(
 
 
 # ==============================================================================================
-# Fail closed. Every one of these must yield NOTHING, never everything.
+# Refuse on error. Every one of these must yield NOTHING, never everything.
 # ==============================================================================================
 
 
@@ -169,29 +169,29 @@ def test_a_group_named_after_a_source_system_grants_nothing():
 
 
 # ==============================================================================================
-# Fail open vs fail closed. The error path is the one nobody tests.
+# Two error policies: grant on error, or refuse on error. The error path is the one nobody tests.
 # ==============================================================================================
 
 
 @pytest.mark.parametrize("token", ["expired", None])
 def test_a_failed_token_grants_nothing(token):
     """An expired token is routine. It must not widen access."""
-    assert acl.resolve_entitlements_fail_closed("user", token).is_empty
+    assert acl.resolve_entitlements_refusing("user", token).is_empty
 
 
 def test_a_valid_token_still_resolves_normally():
-    """The positive control: fail-closed must not mean fail-always."""
-    ent = acl.resolve_entitlements_fail_closed("user", "valid")
+    """The positive control: refusing on error must not mean refusing always."""
+    ent = acl.resolve_entitlements_refusing("user", "valid")
     assert ent.source_systems == frozenset({"docs_a"})
 
 
 @pytest.mark.parametrize("token", ["expired", None])
-def test_the_fail_open_variant_widens_access_on_the_routine_path(token):
-    """Documents the fail-open pattern, so the contrast is executable rather than asserted.
+def test_the_granting_variant_widens_access_on_the_routine_path(token):
+    """Documents the grant-on-error pattern, so the contrast is executable rather than asserted.
 
     If this ever stops holding, the comparison in the article needs revisiting.
     """
-    assert acl.resolve_entitlements_fail_open("user", token) == [acl.OPEN_ACCESS_SENTINEL]
+    assert acl.resolve_entitlements_granting("user", token) == [acl.OPEN_ACCESS_SENTINEL]
 
 
 # ==============================================================================================

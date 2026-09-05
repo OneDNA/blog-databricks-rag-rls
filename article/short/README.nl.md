@@ -93,7 +93,8 @@ credentials. Een veertig regels, misschien.
   Witteveen+Bos hebben opgeleverd. Zodra de toegang van een aanroeper een combinatie van kolommen
   is, is een gedeclareerde tabel het mechanisme dat meeschaalt.
 
-Van elk daarvan bestaat een alternatief dat open faalt. Een permissieve default
+Van elk daarvan bestaat een alternatief dat toegang geeft in plaats van weigert. Een permissieve
+default
 serveert het hele corpus zodra iemand een variabele vergeet. Een kapotte mapping die naar leeg
 degradeert lijkt precies op een terecht lege. Een groepsnaam los interpreteren geeft toegang weg aan
 iedereen die een groep mag aanmaken — gemeten tegen echte workspace-groepen maakte dat van een

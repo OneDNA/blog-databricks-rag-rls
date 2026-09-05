@@ -92,11 +92,11 @@ credentials. Perhaps forty lines.
   shipped at Witteveen+Bos. Once a caller's access is a combination of columns, a declared table is
   the mechanism that scales.
 
-Each has an alternative that fails open. A permissive default serves the whole corpus the first
-time somebody forgets a variable. A malformed mapping degrading to empty looks exactly
-like a correctly empty one. Parsing a group's name loosely hands access to anyone who can create a
-group — measured against real workspace groups, that turned an administration group into a claim on
-a source system.
+Each has an alternative that grants access instead of refusing it. A permissive default serves the
+whole corpus the first time somebody forgets a variable. A malformed mapping degrading to empty
+looks exactly like a correctly empty one. Parsing a group's name loosely hands access to anyone who
+can create a group — measured against real workspace groups, that turned an administration group
+into a claim on a source system.
 
 ## On-behalf-of: which identity reaches Unity Catalog
 

@@ -705,7 +705,7 @@ def decision_tree():
          "you enforce, at query time",
          "Resolve groups per request from the caller's own token. A naming convention works until "
          "access is a <b>combination</b> of columns; then use a <b>declared table</b>."
-         "<br><br>Fail closed. Empty is the default. Malformed raises."
+         "<br><br>Refuse on error. Empty is the default. Malformed raises."
          "<br><br>Test the denial path: the happy path passes either way.",
          860, 570, 255, 210),
         ("pg", "lakebase", NAVY, "Consider pgvector on Lakebase",

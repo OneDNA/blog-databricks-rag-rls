@@ -31,7 +31,7 @@ def assert_enforceable(filters: dict[str, object]) -> None:
     """Refuse a filter whose keys the index cannot actually apply.
 
     Raises PermissionError -- deliberately, rather than ValueError. This is a security control
-    failing closed, and the exception type should say so to anyone reading a traceback.
+    refusing the request, and the exception type should say so to anyone reading a traceback.
     """
     unenforceable = sorted(set(filters) - set(ACL_FILTER_COLUMNS))
     if unenforceable:

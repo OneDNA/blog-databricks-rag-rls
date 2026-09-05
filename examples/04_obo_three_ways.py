@@ -100,7 +100,7 @@ def apps_provider(headers: dict[str, str]) -> CredentialProvider:
     def provide() -> str:
         token = headers.get("x-forwarded-access-token")
         if not token:
-            # Fail closed. Falling back to the app's own identity here is precisely how you
+            # Refuse. Falling back to the app's own identity here is precisely how you
             # build a system that serves every user the deployer's permissions.
             raise PermissionError(
                 "no x-forwarded-access-token header: user authorization is not enabled on this "
@@ -204,7 +204,7 @@ def main() -> int:
         try:
             apps_provider({})()
         except PermissionError as err:
-            print(f"  Apps provider, no header -> PermissionError (fail closed)")
+            print(f"  Apps provider, no header -> PermissionError (refused)")
             print(f"    {err}")
     return 0
 
