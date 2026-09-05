@@ -43,11 +43,11 @@ RETURN is_account_group_member('group-water-delta') AND project_group = 'water-d
 ALTER TABLE project_hours SET ROW FILTER project_group_filter ON (project_group);
 ```
 
-We hebben bevestigd dat het naar de aanroeper kijkt en niet naar de tabeleigenaar, en daarna het
-filter expres kapot gemaakt: de body vervangen door `RETURN project_group = 'ZZ_NOWHERE'`, iedereen
-naar nul rijen zien zakken, het teruggezet en de rijen zien terugkomen. Een filter dat eraan hangt,
-is niet per se een filter dat draait. `DESCRIBE TABLE EXTENDED` vertelt je dát het bestaat; alleen
-het veranderen vertelt je dat het wérkt.
+We hebben bevestigd dat het naar de aanroeper kijkt en niet naar de tabeleigenaar, en het daarna
+getest: de body vervangen door `RETURN project_group = 'NON_EXISTING_GROUP'` — een groep die geen
+enkele rij draagt — moet iedereen niets teruggeven, en dat deed het. Met het origineel terug kwamen
+de rijen weer. Een filter dat eraan hangt, is niet per se een filter dat draait. `DESCRIBE TABLE
+EXTENDED` vertelt je dát het bestaat; het veranderen vertelt je dat het wérkt.
 
 Attribute-based access control is sinds april 2026 GA en schaalt dit: tag de data, hang een policy
 aan een catalog of schema, en elk object met die tag valt eronder — inclusief tabellen die volgende
@@ -144,10 +144,10 @@ een vectorindex door jou, en die verdienen een verschillende mate van vertrouwen
 
 ![Keuze van het handhavingspad](../../diagrams/rendered/decision-tree.png)
 
-Verifieer daarna door te breken. Richt het filter op iets dat niets mag opleveren en kijk of het
-niets oplevert. Trek de grant in en kijk of het antwoord verdwijnt. Zet de groep op eentje waar
-niemand in zit en controleer of het aantal rijen naar nul gaat. Tot je een control expres hebt zien
-falen, heb je hem niet zien werken.
+Test daarna elke control tegen een geval waarin hij moet weigeren. Richt het filter op een waarde
+die geen enkele rij draagt en controleer of het niets oplevert. Trek de grant in en controleer of
+het antwoord verdwijnt. Zet de groep op eentje waar niemand in zit en controleer of het aantal rijen
+naar nul gaat. Een control die je alleen hebt zien slagen, is een control die je niet hebt getest.
 
 Row-level security over een RAG-agent is een reeks kleine ontwerpbeslissingen die allemaal soepel
 samen moeten werken, en geen feature die je aanzet. Neem de tijd om uit te tekenen hoe je wilt dat je

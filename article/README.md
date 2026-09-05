@@ -67,10 +67,10 @@ ran the same query against the same table. The one in the admitted group saw all
 the budget column in the clear; the one in no admitted group saw nothing, and the masked column
 came back as `NULL` on rows it could reach elsewhere.
 
-We then broke the filter on purpose: replaced its body with `RETURN project_group = 'ZZ_NOWHERE'`,
-saw everyone drop to zero rows, restored it, and saw the seven come back. A filter that is attached is
-not necessarily a filter that runs. `DESCRIBE TABLE EXTENDED` tells you it exists; only changing it
-tells you it works.
+We then tested it: replaced the filter body with `RETURN project_group = 'NON_EXISTING_GROUP'`, a
+group no row carries, so a working filter has to return nothing to everybody. It did, and restoring
+the original brought the seven back. A filter that is attached is not necessarily a filter that
+runs. `DESCRIBE TABLE EXTENDED` tells you it exists; changing it tells you it works.
 
 Individual filters attached to every table do not scale well, if your data platform contains
 thousands of tables. Attribute-based access control went generally available in April 2026 and fixes
@@ -499,10 +499,10 @@ your ACL fits the columns you can carry into the index:
 
 ![Enforcement path selection](../diagrams/rendered/decision-tree.png)
 
-Then verify by breaking. Point the filter at something that must return nothing and watch it
-return nothing. Revoke the grant and watch the answer disappear. Set the group to one nobody is
-in and check the row count goes to zero. Until you have watched a control fail on purpose, you
-have not seen it work.
+Then test each control against a case where it has to deny. Point the filter at a value no row
+carries and check it returns nothing. Revoke the grant and check the answer disappears. Set the
+group to one nobody is in and check the row count goes to zero. A control you have only seen
+succeed is a control you have not tested.
 
 For me the honest summary is that knowing how we wanted the system to behave was the easy part.
 Making it behave that way, and verifying when it did not, was hard. The mechanisms are no easier:
@@ -522,7 +522,7 @@ and [`diagrams/`](../diagrams/) holds the architecture as editable draw.io sourc
 | [`03_acl_from_groups.py`](../examples/03_acl_from_groups.py) | SCIM groups to entitlements, failing closed |
 | [`04_obo_three_ways.py`](../examples/04_obo_three_ways.py) | the three credential providers side by side |
 | [`05_genie_per_caller.py`](../examples/05_genie_per_caller.py) | the governed-table contrast |
-| [`sql/row_filter_fixture.sql`](../examples/sql/row_filter_fixture.sql) | a reproducible RLS fixture that breaks itself on purpose |
+| [`sql/row_filter_fixture.sql`](../examples/sql/row_filter_fixture.sql) | a reproducible RLS fixture with its negative tests |
 
 ## In closing
 

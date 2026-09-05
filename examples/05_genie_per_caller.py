@@ -105,10 +105,10 @@ def main() -> int:
     for who, rows, masked in COMPARISON:
         print(f"  {who:<34} {rows:<8} {masked}")
 
-    print("\n  Row filters AND column masks both resolve per caller. We established this by")
-    print("  BREAKING the filter -- replacing its body with a predicate matching nothing,")
+    print("\n  Row filters AND column masks both resolve per caller. We established this with a")
+    print("  negative test -- replacing the filter body with a predicate matching nothing,")
     print("  confirming 0 rows, then restoring it. A filter that is attached is not necessarily")
-    print("  a filter that runs; DESCRIBE tells you it exists, only changing it tells you it works.")
+    print("  a filter that runs; DESCRIBE tells you it exists, and changing it tells you it works.")
 
     print("\n" + "=" * 88)
     print("\nTHE POSITIVE CONTROL, without which a 0 means nothing\n")

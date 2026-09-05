@@ -42,11 +42,11 @@ RETURN is_account_group_member('group-water-delta') AND project_group = 'water-d
 ALTER TABLE project_hours SET ROW FILTER project_group_filter ON (project_group);
 ```
 
-We confirmed it resolves against the caller and not the table owner, then broke the filter on
-purpose — replaced its body with `RETURN project_group = 'ZZ_NOWHERE'`, watched everyone drop to
-zero rows, restored it, and watched the rows come back. A filter that is attached is not
-necessarily a filter that runs. `DESCRIBE TABLE EXTENDED` tells you it exists; only changing it
-tells you it works.
+We confirmed it resolves against the caller and not the table owner, then tested it: replacing the
+body with `RETURN project_group = 'NON_EXISTING_GROUP'` — a group no row carries — has to return
+nothing to everybody, and it did. Restoring the original brought the rows back. A filter that is
+attached is not necessarily a filter that runs. `DESCRIBE TABLE EXTENDED` tells you it exists;
+changing it tells you it works.
 
 Attribute-based access control went GA in April 2026 and scales this: tag the data, attach a policy
 to a catalog or schema, and every object carrying the tag is covered — including tables created next
@@ -142,10 +142,10 @@ vector index is enforced by you, and those deserve different amounts of confiden
 
 ![Enforcement path selection](../../diagrams/rendered/decision-tree.png)
 
-Then verify by breaking. Point the filter at something that must return nothing and watch it return
-nothing. Revoke the grant and watch the answer disappear. Set the group to one nobody is in and
-check the row count goes to zero. Until you have watched a control fail on purpose, you have not
-seen it work.
+Then test each control against a case where it has to deny. Point the filter at a value no row
+carries and check it returns nothing. Revoke the grant and check the answer disappears. Set the
+group to one nobody is in and check the row count goes to zero. A control you have only seen
+succeed is a control you have not tested.
 
 Row-level security over a RAG agent is a series of small design decisions that all have to work
 together smoothly, rather than a feature you switch on. Take time to map out how you want your agent

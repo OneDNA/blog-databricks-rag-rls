@@ -4,9 +4,9 @@
 -- counts, RLS resolves per caller in your workspace. If they get the same count, something is
 -- wrong and it is better to find out here than in production.
 --
--- The important part is not the setup. It is section 4, which BREAKS the filter deliberately.
--- A filter that is attached is not necessarily a filter that runs: DESCRIBE tells you it
--- exists, only changing it and watching the number move tells you it works.
+-- The important part is not the setup. It is section 4: the negative test. A filter that is
+-- attached is not necessarily a filter that runs -- DESCRIBE tells you it exists, and changing it
+-- and watching the number move tells you it works.
 --
 -- Replace the placeholders before running:
 --   ${CATALOG}   a catalog you can create schemas in
@@ -95,14 +95,14 @@ DESCRIBE TABLE EXTENDED ${CATALOG}.rls_demo.project_hours;
 --           Column Masks: budget -> ... budget_mask
 
 -- ============================================================================================
--- 4. Break it deliberately -- THIS IS THE POINT OF THE FIXTURE
+-- 4. The negative test -- THIS IS THE POINT OF THE FIXTURE
 -- ============================================================================================
 
--- Everything above is consistent with the filter being accepted and ignored. The only way to
--- know it runs is to change it and watch the number move.
+-- Everything above is consistent with the filter being accepted and ignored. To know it runs,
+-- point it at a group no row carries: a working filter then returns nothing to everybody.
 
 CREATE OR REPLACE FUNCTION ${CATALOG}.rls_demo.hours_group_filter(project_group STRING)
-RETURN project_group = 'ZZ_NOWHERE';
+RETURN project_group = 'NON_EXISTING_GROUP';
 
 SELECT count(*) FROM ${CATALOG}.rls_demo.project_hours;
 -- expected: 0, for EVERY caller including a workspace admin.

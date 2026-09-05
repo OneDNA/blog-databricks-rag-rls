@@ -68,11 +68,11 @@ principals draaiden dezelfde query tegen dezelfde tabel. Degene in de toegelaten
 zeven rijen met de budgetkolom gewoon zichtbaar; degene in geen enkele toegelaten groep zag niets,
 en de gemaskeerde kolom kwam als `NULL` terug op de rijen die hij elders wel kon bereiken.
 
-Daarna hebben we het filter expres kapot gemaakt: de body vervangen door
-`RETURN project_group = 'ZZ_NOWHERE'`, iedereen naar nul rijen zien zakken, het teruggezet en de
-zeven zien terugkomen. Een filter dat eraan hangt, is niet per se een filter dat draait.
-`DESCRIBE TABLE EXTENDED` vertelt je dát het bestaat; alleen het veranderen vertelt je dat het
-wérkt.
+Daarna hebben we het getest: de filterbody vervangen door
+`RETURN project_group = 'NON_EXISTING_GROUP'`, een groep die geen enkele rij draagt, dus een werkend
+filter moet iedereen niets teruggeven. Dat deed het, en met het origineel terug kwamen de zeven
+rijen weer. Een filter dat eraan hangt, is niet per se een filter dat draait. `DESCRIBE TABLE
+EXTENDED` vertelt je dát het bestaat; het veranderen vertelt je dat het wérkt.
 
 Losse filters aan elke tabel hangen schaalt niet goed, als je dataplatform duizenden tabellen bevat.
 Attribute-based access control is sinds april 2026 GA en lost dat op: je tagt de data en hangt een
@@ -524,10 +524,10 @@ kolommen die je mee de index in kunt nemen:
 
 ![Keuze van het handhavingspad](../diagrams/rendered/decision-tree.png)
 
-Verifieer daarna door te breken. Richt het filter op iets dat niets mag opleveren en kijk of het
-niets oplevert. Trek de grant in en kijk of het antwoord verdwijnt. Zet de groep op eentje waar
-niemand in zit en controleer of het rijaantal naar nul gaat. Zolang je een control niet expres hebt
-zien falen, heb je hem niet zien werken.
+Test daarna elke control tegen een geval waarin hij moet weigeren. Richt het filter op een waarde
+die geen enkele rij draagt en controleer of het niets oplevert. Trek de grant in en controleer of
+het antwoord verdwijnt. Zet de groep op eentje waar niemand in zit en controleer of het rijaantal
+naar nul gaat. Een control die je alleen hebt zien slagen, is een control die je niet hebt getest.
 
 Voor mij is de eerlijke samenvatting dat wéten hoe we wilden dat het systeem zich gedroeg het
 makkelijke deel was. Het zich zo laten gedragen, en kunnen vaststellen wanneer dat niet zo was, was
@@ -548,7 +548,7 @@ en [`diagrams/`](../diagrams/) bevat de architectuur als bewerkbare draw.io-bron
 | [`03_acl_from_groups.py`](../examples/03_acl_from_groups.py) | SCIM-groepen naar rechten, fail-closed |
 | [`04_obo_three_ways.py`](../examples/04_obo_three_ways.py) | de drie credential providers naast elkaar |
 | [`05_genie_per_caller.py`](../examples/05_genie_per_caller.py) | het contrast met de beheerde tabel |
-| [`sql/row_filter_fixture.sql`](../examples/sql/row_filter_fixture.sql) | een reproduceerbare RLS-fixture die zichzelf expres breekt |
+| [`sql/row_filter_fixture.sql`](../examples/sql/row_filter_fixture.sql) | een reproduceerbare RLS-fixture met zijn negatieve tests |
 
 ## Tot slot
 

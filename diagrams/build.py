@@ -695,7 +695,7 @@ def decision_tree():
         ("uc", "unity-catalog", GREEN, "Unity Catalog RLS",
          "row filters and column masks, or an ABAC policy at catalog scope",
          "<b>The platform enforces.</b> Resolves per caller, and holds across the agent and Teams "
-         "hops.<br><br>Verify it by breaking it.", 60, 570, 240, 178),
+         "hops.<br><br>Test it against a case it has to deny.", 60, 570, 240, 178),
         ("sp", "sql-warehouse", LAVA_DEEP, "Review the SP's grants",
          "the service principal <b>is</b> the identity",
          "Every human calling through it sees the union of what the SP may read, with "
@@ -706,7 +706,7 @@ def decision_tree():
          "Resolve groups per request from the caller's own token. A naming convention works until "
          "access is a <b>combination</b> of columns; then use a <b>declared table</b>."
          "<br><br>Fail closed. Empty is the default. Malformed raises."
-         "<br><br>Test by breaking it: the happy path passes either way.",
+         "<br><br>Test the denial path: the happy path passes either way.",
          860, 570, 255, 210),
         ("pg", "lakebase", NAVY, "Consider pgvector on Lakebase",
          "move enforcement back into the database",
@@ -760,7 +760,7 @@ def decision_tree():
         f'<b style="font-size:13px;color:{NAVY_DEEP};">Whichever branch you land on</b><br>'
         f'<span style="font-size:11px;color:{NAVY_DEEP};">'
         f'<b>1.</b> Point the filter at something that must return nothing, and watch it return '
-        f'nothing. Until you have seen it fail on purpose, you have only seen it succeed.<br>'
+        f'nothing. A control you have only seen succeed is a control you have not tested.<br>'
         f'<b>2.</b> Make your two zeros distinguishable: "no entitlement" and "something broke" '
         f'look identical from outside.<br>'
         f'<b>3.</b> Assert on the identity that produced the answer. An answer arriving tells '
