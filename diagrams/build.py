@@ -32,7 +32,7 @@ OAT_LINE = "#D9D7CE"   # marks not-Databricks
 OAT = "#EEEDE9"
 OAT_LIGHT = "#F9F7F4"
 WHITE = "#FFFFFF"
-GREEN = "#71C5AD"      # accent — used here for "platform enforces"
+GREEN = "#00A972"      # semantic green — "the platform enforces". Matches chat-response.html.
 
 # DM Sans is the Databricks brand font. `fontSource` fetches it in the web editor, but the
 # desktop app and any local render use INSTALLED fonts only -- so without a fallback chain a
@@ -551,7 +551,7 @@ def architecture():
 
     d.add("s56", html("5–6 Enrich · Join",
                       f'<b style="color:{LAVA_DEEP};">where ACL columns</b>',
-                      f'<b style="color:{LAVA_DEEP};">are carried</b>'),
+                      f'<b style="color:{LAVA_DEEP};">are written</b>'),
           plain(LAVA, WHITE, 3), 360, 66, 165, 66, "pipe")
 
     d.add("s9", html("9 Serve", "AI Search index"), plain(LAVA_DEEP, WHITE, 3) +
@@ -573,7 +573,7 @@ def architecture():
     d.add("cols", esc(
         f'<b>ACL_FILTER_COLUMNS</b><br><span style="font-size:10px;">source_system · site_id · '
         f'sensitivity<br><br><i>Your ACL can never be more expressive than the columns you '
-        f'carried at index time. Getting it wrong is a <b>rebuild</b>.</i></span>'),
+        f'written at index time. Getting it wrong is a <b>rebuild</b>.</i></span>'),
         note(LAVA, WHITE), 1410, 62, 200, 100, "pipe")
 
     seq = ["s12", "s34", "s56", "s7", "s8"]
@@ -888,12 +888,12 @@ def governance_boundary():
     """Where Unity Catalog stops governing, drawn as two zones and one crossing.
 
     The whole argument is the border colour: green on the left, deep lava on the
-    right, and an arrow between them that carries the security context nowhere.
+    right, and an arrow between them that takes the security context nowhere.
     """
     d = Doc("rls-governance-boundary", "Where platform enforcement stops", 1280, 560)
 
     d.add("t", title("Governance boundary: table to index",
-                     "A governed table carries its filters. The index built from it does not."),
+                     "A governed table has its filters. The index built from it does not."),
           f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
           f"verticalAlign=middle;{FONT}", 40, 20, 900, 72)
 
@@ -961,7 +961,7 @@ def governance_boundary():
         f'<span style="font-size:11px;color:{NAVY_DEEP};">Whatever access control applied to the '
         f'text is not in the vector. What arrives is what you deliberately wrote '
         f'into metadata columns alongside it — so your ACL can never be more expressive than the '
-        f'columns you carried at index time.</span>'),
+        f'columns you wrote at index time.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
         f"spacingLeft=16;spacingTop=10;verticalAlign=top;fontSize=11;{FONT}", 40, 472, 1200, 56)
 

@@ -20,7 +20,7 @@ argument the article makes, rendered as a visual convention:
 
 | Border | Meaning |
 | --- | --- |
-| **Green** `#71C5AD` | **Unity Catalog enforces.** Per caller, platform-side, gives notice when it goes wrong. |
+| **Green** `#00A972` | **Unity Catalog enforces.** Per caller, platform-side, gives notice when it goes wrong. |
 | **Lava** `#FF5F46` | **Your code enforces.** Only as good as you wrote it. |
 | **Deep lava** `#FF3621` | **Nothing enforces.** The security plane does not reach here. |
 | **Oat** `#D9D7CE` | Outside Databricks entirely. |

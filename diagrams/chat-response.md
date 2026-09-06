@@ -75,5 +75,5 @@ filtering on the other — reflects what we measured; the specific numbers and d
 not.
 
 Colour tokens follow the Databricks brand system: the semantic green is `#00A972` / `#00875C`, and
-the palette has no teal, turquoise or mint. The `.drawio` diagrams in this directory still use an
-off-brand `#71C5AD` and have not yet been brought into line.
+the palette has no teal, turquoise or mint. The `.drawio` diagrams in this directory use the same
+`#00A972`, set once as `GREEN` in [`build.py`](build.py).
