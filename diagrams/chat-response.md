@@ -23,7 +23,7 @@ governance boundary the article draws.
 | *What went wrong on Water Delta, and what did we learn?* | qualitative | AI Search index | **your own code**, at query time |
 
 A number comes from governed tables, so a row filter resolves against whoever is asking and the
-platform decides what comes back. A judgement lives in documents, so the index carries no row
+platform decides what comes back. A judgement lives in documents, so the index has no row
 filter at all and the entitlement filter your retrieval code passes is the only thing narrowing
 the result.
 
@@ -47,7 +47,7 @@ Both of David's answers come back empty, and from outside they look identical. T
   for any caller on any client.
 - **On the AI Search path**, his entitlement resolved to Coastal North and the filter went out
   scoped to it. The index has no row filter of its own; had our code passed no filter, or a filter
-  naming a column the index does not carry, he would have received Water Delta chunks with no
+  naming a column the index does not have, he would have received Water Delta chunks with no
   error and no warning.
 
 > [!NOTE]

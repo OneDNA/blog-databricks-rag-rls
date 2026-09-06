@@ -71,13 +71,13 @@ the budget column in the clear; the one in no admitted group saw nothing, and th
 came back as `NULL` on rows it could reach elsewhere.
 
 We then tested it: replaced the filter body with `RETURN project_group = 'NON_EXISTING_GROUP'`, a
-group no row carries, so a working filter has to return nothing to everybody. It did, and restoring
+group no row has, so a working filter has to return nothing to everybody. It did, and restoring
 the original brought the seven back. A filter that is attached is not necessarily a filter that
 runs. `DESCRIBE TABLE EXTENDED` tells you it exists; changing it tells you it works.
 
 Individual filters attached to every table do not scale well, if your data platform contains
 thousands of tables. Attribute-based access control went generally available in April 2026 and fixes
-that: you tag the data and attach a policy to a catalog or a schema, and every object carrying the
+that: you tag the data and attach a policy to a catalog or a schema, and every object with that
 tag is covered, including tables created next month by somebody who does not know the policy exists.
 `MATCH COLUMNS` finds the right column by tag rather than by name, so a table that spells it
 `team_code` instead of `project_group` is still covered. Coverage stops depending on anybody
@@ -94,7 +94,7 @@ Four mechanisms stack on a governed table, and it helps to know which question e
 
 The ABAC documentation has one pattern we now use everywhere. Tag everything
 `classification: unverified` by default at the catalog level, then write a policy that refuses
-anything still carrying that tag. New tables are closed until somebody classifies them, rather
+anything still tagged that way. New tables are closed until somebody classifies them, rather
 than open until somebody notices.
 
 So far the platform is doing the work for you. Then you point a RAG pipeline at those documents,
@@ -116,7 +116,7 @@ A document travels through parsing, chunking, enrichment and embedding on its wa
 the security context does not reach the index. An embedding is a list of floats; whatever
 access control applied to the text it came from is not in there. What arrives is what you
 deliberately wrote into metadata columns alongside it, which means your ACL can never be more
-expressive than the columns you thought to carry at index time. Get that wrong and the fix is
+expressive than the columns you wrote at index time. Get that wrong and the fix is
 a rebuild rather than a grant.
 
 The related problem is that metadata **is** content. If you index `created_by_email` or `web_url`
@@ -129,7 +129,7 @@ anything.
 
 ## Filters on AI Search
 
-So you write the filter yourself and pass it with the query. In our example the index carries three
+So you write the filter yourself and pass it with the query. In our example the index has three
 metadata columns for this — `source_system`, `site_id` and `sensitivity` — and a query names the
 values the caller is allowed to see. Those three columns exist because the access requirement
 needed them, and you pick them at index time.
@@ -214,7 +214,7 @@ Four decisions in that layer shaped the rest:
 - **An unentitled caller never reaches the model.** They get an explicit denial naming which of
   their groups granted nothing, rather than an answer assembled from the model's general knowledge.
 - **Where entitlements come from is a scale decision.** A naming convention works, and it is what
-  we shipped at Witteveen+Bos: the group's name carries the entitlement, which needs no
+  we shipped at Witteveen+Bos: the group's name holds the entitlement, which needs no
   configuration at all. It holds as long as one group maps to one thing. Once a caller's access is
   a combination of metadata columns — a source system *and* a site *and* a sensitivity — the name
   has to encode a tuple, and a declared table is the mechanism that scales. Then an unmapped
@@ -239,7 +239,7 @@ against names only your identity process can mint — never a substring test.
 We did not invent the array-overlap approach behind this. We built a per-chunk ACL like it before,
 in the Gen AI framework we delivered with the AI Nexus team at
 [Witteveen+Bos](https://onedna.nl/witteveenbos/), where unstructured project documents flow from
-SharePoint into a governed index and every chunk carries the groups allowed to see it. Building it
+SharePoint into a governed index and every chunk lists the groups allowed to see it. Building it
 a second time is what turned a set of scattered decisions into the four above.
 
 That work also left us with two habits. Merge the caller's entitlement filter over any
@@ -262,7 +262,7 @@ except Exception:
 ```
 
 Both are one line and neither would stop a reviewer. The first makes safety depend on no
-document ever carrying that sentinel string in its ACL column, which is a convention enforced by
+document ever holding that sentinel string in its ACL column, which is a convention enforced by
 nothing and one rename away from failing. We deny instead.
 
 ### Should the ACL be a Unity Catalog function?
@@ -357,9 +357,9 @@ policy trusts the issuer and audience, and when four Entra settings are in place
 `preferred_username` as an optional access-token claim, `requestedAccessTokenVersion` 2, an
 `access_as_user` scope, and the Bot Framework redirect URI.
 
-Each hop carries one token, and drops the identity if it does not pass it on:
+Each hop passes one token, and drops the identity if it does not:
 
-| Hop | Carries | What happens if this does not work |
+| Hop | Passes | What happens if this does not work |
 | --- | --- | --- |
 | User → front end | the sign-in, via Entra | nobody is authenticated |
 | Front end → Databricks | Entra token **exchanged** for a Databricks one | the workspace API rejects it |
@@ -393,7 +393,7 @@ enforces. The other is qualitative and routes to the index, where our own filter
 
 Both of David's answers are empty, and from the outside they look identical. On the Genie path the
 platform decided. On the index path our filter decided — and had we passed no filter, or one naming
-a column the index does not carry, he would have received Water Delta chunks with no error and no
+a column the index does not have, he would have received Water Delta chunks with no error and no
 warning. `obo_active` reads `true` in all four metadata boxes, which is what makes either zero
 readable.
 
@@ -473,7 +473,7 @@ before you read it by arrow:
 A service principal calling the same space over the API gets its own identity evaluated, honestly,
 as itself. No permissions are laundered. Under user authorisation the caller's own grants apply and
 the endpoint needs no standing grant of its own, so `SystemAuthPolicy` declares only the chat model
-and `UserAuthPolicy` carries the rest.
+and `UserAuthPolicy` handles the rest.
 
 > [!WARNING]
 > **On a non-interactive path the service principal is the whole of your access control.** Every
@@ -537,8 +537,8 @@ not a rule. What changes is that you find out.
 **Know which side of the boundary you are on.** A governed table is enforced by the platform and a
 vector index is enforced by you, and those deserve different amounts of confidence.
 
-**Carry the columns at index time.** Your ACL can never be more expressive than the metadata you
-wrote alongside the chunks, and adding one later means a rebuild.
+**Write the columns at index time.** Your ACL can never be more expressive than the metadata you
+put alongside the chunks, and adding one later means a rebuild.
 
 **Deny on error.** Make "no entitlement" and "something broke" tell themselves apart, so a zero row
 count is diagnosable.
@@ -547,12 +547,12 @@ count is diagnosable.
 of your access control, whatever row-level security is switched on.
 
 Which path you land on follows from two questions — whether the content is structured, and whether
-your ACL fits the columns you can carry into the index:
+your ACL fits the columns you can get into the index:
 
 ![Enforcement path selection](../diagrams/rendered/decision-tree.png)
 
 Then test each control against a case where it has to deny. Point the filter at a value no row
-carries and check it returns nothing. Revoke the grant and check the answer disappears. Set the
+has and check it returns nothing. Revoke the grant and check the answer disappears. Set the
 group to one nobody is in and check the row count goes to zero. A control you have only seen
 succeed is a control you have not tested.
 
@@ -580,7 +580,7 @@ and [`diagrams/`](../diagrams/) holds the architecture as editable draw.io sourc
 
 Row-level security over a RAG agent is a series of small design decisions that all have to work
 together smoothly, rather than a feature you switch on. Unity Catalog does its part per caller and OBO
-carries the identity through three hops. Take time to map out how you want your agent to behave at
+brings the identity through three hops. Take time to map out how you want your agent to behave at
 every step. And build thorough validations into your testing cycle.
 
 ## Curious how other teams handle access control on AI applications?

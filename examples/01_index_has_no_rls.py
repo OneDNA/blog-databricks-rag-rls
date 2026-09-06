@@ -39,7 +39,7 @@ def fake_similarity_search(filters: dict[str, list[str]] | None) -> list[dict]:
     """Model AI Search's filtering, including the part that should frighten you.
 
     The single important line is the ``continue``: a predicate naming a column the index does
-    not carry is skipped, not rejected. Everything else here is ordinary filtering.
+    not have is skipped, not rejected. Everything else here is ordinary filtering.
     """
     rows = CORPUS
     for column, allowed in (filters or {}).items():

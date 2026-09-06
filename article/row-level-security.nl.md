@@ -73,7 +73,7 @@ zeven rijen met de budgetkolom gewoon zichtbaar; degene in geen enkele toegelate
 en de gemaskeerde kolom kwam als `NULL` terug op de rijen die hij elders wel kon bereiken.
 
 Daarna hebben we het getest: de filterbody vervangen door
-`RETURN project_group = 'NON_EXISTING_GROUP'`, een groep die geen enkele rij draagt, dus een werkend
+`RETURN project_group = 'NON_EXISTING_GROUP'`, een groep die geen enkele rij heeft, dus een werkend
 filter moet iedereen niets teruggeven. Dat deed het, en met het origineel terug kwamen de zeven
 rijen weer. Een filter dat eraan hangt, is niet per se een filter dat draait. `DESCRIBE TABLE
 EXTENDED` vertelt je dát het bestaat; het veranderen vertelt je dat het wérkt.
@@ -133,7 +133,7 @@ lekt, heeft niets beschermd.
 
 ## Filters op AI Search
 
-Dus schrijf je het filter zelf en geef je het mee met de query. In ons voorbeeld draagt de index
+Dus schrijf je het filter zelf en geef je het mee met de query. In ons voorbeeld heeft de index
 daarvoor drie metadatakolommen — `source_system`, `site_id` en `sensitivity` — en een query noemt de
 waarden die de aanroeper mag zien. Die drie kolommen bestaan omdat de toegangseis ze nodig had, en
 je kiest ze bij het indexeren.
@@ -221,7 +221,7 @@ Vier beslissingen in die laag bepaalden de rest:
   vertelt welke van zijn groepen niets verleenden, in plaats van een antwoord uit de algemene
   kennis van het model.
 - **Waar rechten uit komen is een schaalbeslissing.** Een naamconventie werkt, en het is wat we bij
-  Witteveen+Bos hebben opgeleverd: de groepsnaam draagt het recht, waarvoor je niets hoeft te
+  Witteveen+Bos hebben opgeleverd: de groepsnaam bevat het recht, waarvoor je niets hoeft te
   configureren. Dat houdt stand zolang één groep op één ding mapt. Zodra de toegang van een
   aanroeper een combinatie van metadatakolommen is — een bronsysteem *én* een site *én* een
   gevoeligheid — moet de naam een tuple coderen, en is een gedeclareerde tabel het mechanisme dat
@@ -273,7 +273,7 @@ except Exception:
 ```
 
 Allebei één regel en allebei zouden ze een review doorkomen. Bij de eerste hangt veiligheid
-ervan af dat geen enkel document die sentinel-string ooit in zijn ACL-kolom draagt, en dat is een
+ervan af dat geen enkel document die sentinel-string ooit in zijn ACL-kolom heeft, en dat is een
 afspraak die door niets wordt afgedwongen en die één hernoeming verwijderd is van falen. Wij
 weigeren in plaats daarvan.
 
@@ -373,9 +373,9 @@ federation policy op accountniveau de issuer en audience vertrouwt, en als vier 
 staan: `preferred_username` als optionele access-token-claim, `requestedAccessTokenVersion` 2, een
 `access_as_user`-scope en de redirect-URI van het Bot Framework.
 
-Elke hop draagt één token, en laat de identiteit vallen als hij het niet doorgeeft:
+Elke hop geeft één token door, en laat de identiteit vallen als hij dat niet doet:
 
-| Hop | Draagt | Wat er gebeurt als dit niet werkt |
+| Hop | Geeft door | Wat er gebeurt als dit niet werkt |
 | --- | --- | --- |
 | Gebruiker → front end | de aanmelding, via Entra | niemand is geauthenticeerd |
 | Front end → Databricks | Entra-token **ingewisseld** voor een Databricks-token | de workspace-API weigert het |
@@ -410,7 +410,7 @@ Catalog handhaaft. De andere is kwalitatief en gaat naar de index, waar ons eige
 
 Beide antwoorden van David zijn leeg, en van buiten zien ze er hetzelfde uit. Op het Genie-pad heeft
 het platform beslist. Op het indexpad heeft ons filter beslist — en hadden we geen filter meegegeven,
-of een filter dat een kolom noemt die de index niet draagt, dan had hij Water Delta-chunks gekregen
+of een filter dat een kolom noemt die de index niet heeft, dan had hij Water Delta-chunks gekregen
 zonder error en zonder waarschuwing. `obo_active` staat in alle vier de metadataboxen op `true`, en
 dat is wat beide nullen leesbaar maakt.
 
@@ -492,7 +492,7 @@ pas op pijlen:
 Een service principal die dezelfde space via de API aanroept, krijgt zijn eigen identiteit
 geëvalueerd, eerlijk, als zichzelf. Er worden geen rechten witgewassen. Onder user authorization
 gelden de grants van de aanroeper zelf en heeft het endpoint geen eigen staande grant nodig, dus
-declareert `SystemAuthPolicy` alleen het chatmodel en draagt `UserAuthPolicy` de rest.
+declareert `SystemAuthPolicy` alleen het chatmodel en regelt `UserAuthPolicy` de rest.
 
 > [!WARNING]
 > **Op een niet-interactief pad ís de service principal je volledige toegangscontrole.** Iedere
@@ -577,7 +577,7 @@ kolommen die je mee de index in kunt nemen:
 ![Keuze van het handhavingspad](../diagrams/rendered/decision-tree.png)
 
 Test daarna elke control tegen een geval waarin hij moet weigeren. Richt het filter op een waarde
-die geen enkele rij draagt en controleer of het niets oplevert. Trek de grant in en controleer of
+die geen enkele rij heeft en controleer of het niets oplevert. Trek de grant in en controleer of
 het antwoord verdwijnt. Zet de groep op eentje waar niemand in zit en controleer of het rijaantal
 naar nul gaat. Een control die je alleen hebt zien slagen, is een control die je niet hebt getest.
 
@@ -606,7 +606,7 @@ en [`diagrams/`](../diagrams/) bevat de architectuur als bewerkbare draw.io-bron
 
 Row-level security over een RAG-agent is een reeks kleine ontwerpbeslissingen die allemaal soepel
 samen moeten werken, en geen feature die je aanzet. Unity Catalog doet zijn deel per
-aanroeper en OBO draagt de identiteit door drie hops heen. Neem de tijd om uit te tekenen hoe je
+aanroeper en OBO brengt de identiteit door drie hops heen. Neem de tijd om uit te tekenen hoe je
 wilt dat je agent zich bij elke stap gedraagt. En bouw grondige validaties in je testcyclus.
 
 ## Benieuwd hoe andere teams toegangscontrole op AI-toepassingen aanpakken?

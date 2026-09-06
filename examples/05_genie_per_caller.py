@@ -14,7 +14,7 @@ attributes the statement to the human, not to the serving endpoint's service pri
 THE PROBLEM: on a non-interactive path the service principal IS the evaluated identity. Correctly
 and honestly. Which means every human calling through that integration sees the union of what
 the SP was granted, with no per-caller differentiation at all. The risk is not that identity
-gets lost -- it is that a broadly-granted SP FLATTENS every caller to the same access.
+gets lost -- it is that a broadly-granted SP OVERRULES on-behalf-of and takes its own.
 """
 
 from __future__ import annotations
@@ -136,10 +136,10 @@ def main() -> int:
     print("  Databricks documents that granting an SP access to a Genie space also requires")
     print("  granting its underlying tables and warehouse. Follow that for an agent and you have")
     print("  given the ENDPOINT a standing grant on the data -- so every caller sees the union of")
-    print("  what the endpoint may read. The flattening, arrived at by following the docs.")
+    print("  what the endpoint may read -- on-behalf-of overruled, by following the docs.")
     print()
     print("  Under user authorization you do not need those downstream grants. Do not add them.")
-    print("  Declare only the chat model in SystemAuthPolicy; let UserAuthPolicy carry the rest.")
+    print("  Declare only the chat model in SystemAuthPolicy; UserAuthPolicy handles the rest.")
 
     print("\n" + "=" * 88)
     print("\nAND ONE THING THAT IS *NOT* A BOUNDARY\n")

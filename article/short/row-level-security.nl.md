@@ -49,7 +49,7 @@ ALTER TABLE project_hours SET ROW FILTER project_group_filter ON (project_group)
 
 We hebben bevestigd dat het naar de aanroeper kijkt en niet naar de tabeleigenaar, en het daarna
 getest: de body vervangen door `RETURN project_group = 'NON_EXISTING_GROUP'` — een groep die geen
-enkele rij draagt — moet iedereen niets teruggeven, en dat deed het. Met het origineel terug kwamen
+enkele rij heeft — moet iedereen niets teruggeven, en dat deed het. Met het origineel terug kwamen
 de rijen weer. Een filter dat eraan hangt, is niet per se een filter dat draait. `DESCRIBE TABLE
 EXTENDED` vertelt je dát het bestaat; het veranderen vertelt je dat het wérkt.
 
@@ -157,7 +157,7 @@ inference tables inbegrepen.
 ## On-behalf-of: welke identiteit Unity Catalog bereikt
 
 Dat alles gaat ervan uit dat de agent weet wie het vraagt. De agent draait ergens — een serving
-endpoint, een app, een container — en dat ding heeft een eigen identiteit. On-behalf-of draagt de
+endpoint, een app, een container — en dat ding heeft een eigen identiteit. On-behalf-of brengt de
 identiteit van de aanroeper naar Unity Catalog in plaats van die van de deployer.
 
 Twee hosts kunnen de keten draaien, en één verschil bepaalt welke:
@@ -248,7 +248,7 @@ kolommen die je mee de index in kunt nemen:
 ![Keuze van het handhavingspad](../../diagrams/rendered/decision-tree.png)
 
 Test daarna elke control tegen een geval waarin hij moet weigeren. Richt het filter op een waarde
-die geen enkele rij draagt en controleer of het niets oplevert. Trek de grant in en controleer of
+die geen enkele rij heeft en controleer of het niets oplevert. Trek de grant in en controleer of
 het antwoord verdwijnt. Zet de groep op eentje waar niemand in zit en controleer of het aantal rijen
 naar nul gaat. Een control die je alleen hebt zien slagen, is een control die je niet hebt getest.
 

@@ -11,7 +11,7 @@ assistant on top of its own documents runs into this sooner or later.
 Unity Catalog answers that well for tables. Attach a row filter and a column mask, and every reader
 gets their own view of the same object, evaluated against whoever is asking. It does not answer it
 for a vector index. An AI Search index is a Unity Catalog object with grants, so you can allow or
-deny querying it, but it carries no row filters and no column masks. Filtering an index is a
+deny querying it, but it has no row filters and no column masks. Filtering an index is a
 parameter you pass in the query, from your own application code.
 
 Databricks documents this.
@@ -54,7 +54,7 @@ ALTER TABLE project_hours SET ROW FILTER project_group_filter ON (project_group)
 ```
 
 We confirmed it resolves against the caller and not the table owner, then tested it by replacing the
-body with `RETURN project_group = 'NON_EXISTING_GROUP'` — a group no row carries, so a working
+body with `RETURN project_group = 'NON_EXISTING_GROUP'` — a group no row has, so a working
 filter has to return nothing to everybody. It did, and restoring the original brought the rows back.
 
 That test matters more than it looks. A filter that is attached is not necessarily a filter that
@@ -62,13 +62,13 @@ runs. `DESCRIBE TABLE EXTENDED` tells you it exists; changing it and watching th
 you it works.
 
 Attribute-based access control went GA in April 2026 and scales this past table-by-table
-maintenance: tag the data, attach a policy to a catalog or schema, and every object carrying the tag
+maintenance: tag the data, attach a policy to a catalog or schema, and every object with that tag
 is covered, including tables created next month by somebody who does not know the policy exists.
 `MATCH COLUMNS` finds the right column by tag rather than by name, so a table that spells it
 `team_code` instead of `project_group` is still covered.
 
 One ABAC pattern is worth copying outright. Tag everything `classification: unverified` by default
-at the catalog level, then write a policy that refuses anything still carrying that tag. New tables
+at the catalog level, then write a policy that refuses anything still tagged that way. New tables
 are then closed until somebody classifies them, rather than open until somebody notices.
 
 ## Where that stops
@@ -81,7 +81,7 @@ table, embed its contents, and the index that results inherits the grants but no
 A document travels through parsing, chunking, enrichment and embedding on its way to the index, and
 the security context does not reach the index. An embedding is a list of floats. What arrives is
 what you deliberately wrote into metadata columns alongside it, which means your ACL can never be
-more expressive than the columns you thought to carry at index time. Get that wrong and the fix is a
+more expressive than the columns you wrote at index time. Get that wrong and the fix is a
 rebuild rather than a grant.
 
 Those columns are a build-side prerequisite, not a retrieval concern. Their values usually come from
@@ -197,7 +197,7 @@ So assert on the identity that produced the answer, not on whether an answer arr
 checks for a response passes identically whether every caller is being served their own permissions
 or the deployer's.
 
-## What we measured
+## The results
 
 Two colleagues, two projects, the same agent and the same two questions. Alice is on Water Delta;
 David is on Coastal North. Neither is an administrator and neither is locked out — David simply
@@ -213,12 +213,12 @@ holds no Water Delta rows he can read.
 Ask *what went wrong on Water Delta, and what did we learn* and the question is qualitative, so it
 routes to the AI Search index. Alice gets six chunks and an answer citing the retrospective and the
 closeout note. David gets nothing, because our code passed `{"project_group": "coastal-north"}` and
-no chunk carries it.
+no chunk has it.
 
 Both of David's answers are empty, and from the outside they look identical. They are not. On the
 Genie path the platform decided, and it would have decided the same way for any caller on any
 client. On the AI Search path *our filter* decided — and had we passed no filter, or one naming a
-column the index does not carry, he would have received Water Delta chunks with no error and no
+column the index does not have, he would have received Water Delta chunks with no error and no
 warning.
 
 `obo_active` reads `true` in all four metadata boxes, which is what makes either zero readable.
@@ -235,11 +235,12 @@ refused four attempts to reach an off-list table and generated no SQL at all. Th
 — a model declining to name a table it has not been shown — and it will change with a model update
 and no release note. Rely on Unity Catalog grants.
 
-**A documented configuration path flattens every caller.** Granting a service principal access to a
-Genie space also requires granting its underlying tables and warehouse. Follow that for an agent and
+**A documented configuration path overrules on-behalf-of and takes the SP identity.** Granting a
+service principal access to a Genie space also requires granting its underlying tables and
+warehouse. Follow that for an agent and
 the endpoint holds a standing grant on the data, so every caller sees the union of what the endpoint
 may read. Under user authorisation you do not need those grants. `SystemAuthPolicy` should declare
-only the chat model; `UserAuthPolicy` carries the rest.
+only the chat model; `UserAuthPolicy` handles the rest.
 
 More generally, on any non-interactive path the service principal is the whole of your access
 control. Every human calling through that integration sees the union of what it was granted, with no
@@ -252,8 +253,8 @@ switched on.
 **Know which side of the boundary you are on.** A governed table is enforced by the platform and a
 vector index is enforced by you, and those deserve different amounts of confidence.
 
-**Carry the columns at index time.** Your ACL can never be more expressive than the metadata you
-wrote alongside the chunks, and adding one later means a rebuild.
+**Write the columns at index time.** Your ACL can never be more expressive than the metadata you
+put alongside the chunks, and adding one later means a rebuild.
 
 **Deny on error.** Make "no entitlement" and "something broke" tell themselves apart, so a zero row
 count is diagnosable.
@@ -262,12 +263,12 @@ count is diagnosable.
 your access control.
 
 Which path you land on follows from two questions — whether the content is structured, and whether
-your ACL fits the columns you can carry into the index:
+your ACL fits the columns you can get into the index:
 
 ![Enforcement path selection](../../diagrams/rendered/decision-tree.png)
 
 Then test each control against a case where it has to deny. Point the filter at a value no row
-carries and check it returns nothing. Revoke the grant and check the answer disappears. Set the
+has and check it returns nothing. Revoke the grant and check the answer disappears. Set the
 group to one nobody is in and check the row count goes to zero. A control you have only seen succeed
 is a control you have not tested.
 

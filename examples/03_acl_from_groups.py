@@ -191,7 +191,7 @@ TYPICAL_WORKSPACE_GROUPS = [
 #
 # The shape below is not hypothetical: it is a pattern we have seen in a production GenAI
 # platform, where entitlement resolution returns a permissive sentinel on ANY error, including
-# a 401 or 403 from an expired token. Safety then rests on no document carrying that sentinel
+# a 401 or 403 from an expired token. Safety then rests on no document holding that sentinel
 # string, which nothing enforces.
 #
 # We are not showing it to score a point. We are showing it because an expired token is a
@@ -287,7 +287,7 @@ def main() -> int:
     print(f"\n  derived source systems: {derived}")
     print()
     print("  A workspace ADMINISTRATION group becomes a claim on a source system called 'admins'.")
-    print("  It denies access only by luck -- because no document happens to carry that value.")
+    print("  It denies access only by luck -- because no document happens to hold that value.")
     print()
     danger = "team-project-docs_a"
     print(f"  Now consider a group named: {danger}")
@@ -322,7 +322,7 @@ def main() -> int:
     print("  it happens to real users every day -- and under the granting policy it WIDENS")
     print("  access rather than removing it.")
     print()
-    print("  Safety then rests on no document ever carrying the sentinel string in its ACL")
+    print("  Safety then rests on no document ever holding the sentinel string in its ACL")
     print("  column. Nothing enforces that. It is a convention, one rename away from failing.")
     print()
     print("  Decide what your error paths grant, and write it down. Most systems have never")
