@@ -64,28 +64,30 @@ Attribute-based access control went GA in April 2026 and scales this: tag the da
 to a catalog or schema, and every object with that tag is covered — including tables created next
 month by somebody who does not know the policy exists. The pattern we now use everywhere is to tag
 everything `classification: unverified` at the catalog level and write a policy refusing anything
-still tagged that way, so new tables are closed until somebody classifies them.
+still tagged that way, so new tables are closed until somebody classifies them. The beta
+functionality of tag propagation and auto-tagging will help you implement this quickly.
 
 ## The index does not inherit the filters
 
-An AI Search index is a Unity Catalog object with grants, so you can allow or deny querying it. It
-has no row filters and no column masks. Filtering an index is a parameter you pass from application
-code.
+An AI Search index is a Unity Catalog object with object-level grants, so you can allow or deny
+querying it. It has no row filters and no column masks. Filtering an index is a parameter you pass
+from application code, so you explicitly add metadata columns to filter on to the source table, and
+add filters to the query being sent to the index.
 
 ![Governance boundary: table to index](../../diagrams/rendered/governance-boundary-narrow.png)
 
 A document travels through parsing, chunking and embedding on its way to the index, and the security
-context does not reach the index. An embedding is a list of floats. What arrives is what you
-deliberately wrote into metadata columns alongside it — so your ACL can never be more expressive
-than the columns you wrote at index time. Get that wrong and the fix is a rebuild
-rather than a grant.
+context does not reach the index. What arrives is what you deliberately wrote into metadata columns
+alongside it — so your ACL can never be more expressive than the columns you wrote at index time.
+Because a schema change leads to recreating the table, you might spend a lot of tokens on reindexing
+your entire corpus.
 
 Those columns are also a build-side prerequisite, not a retrieval concern. Their values usually come
 from the source system, so the pipeline has to reach them before the serve side can filter on
 anything. At Witteveen+Bos we pulled the SharePoint metadata over the Graph API as a separate step
 and joined it onto the chunks later; the Databricks SharePoint connector now exposes
-`_sharepoint_metadata` directly, which removes that join. It needs DBR 18 LTS: on 17.3 the read
-still succeeds, with every metadata field absent.
+`_sharepoint_metadata` directly, which removes that join. It needs DBR 18 LTS, and on older versions
+the read still succeeds with every metadata field absent.
 
 The related problem is that metadata **is** content. If you index `created_by_email` or `web_url` as
 a retrievable column, those values are visible to anyone who can query the index, whether or not
@@ -118,8 +120,8 @@ def groups_for(token: str) -> list[str]:
     return [g["display"] for g in body.get("groups", [])]
 ```
 
-Using the caller's token rather than the endpoint's is the whole point: nobody can claim a
-membership they do not have, because they are not the one answering the question. A 401 here is a
+We use the caller's token rather than the endpoint's, so nobody can claim a membership they do not
+have, because they are not the one answering the question. A 401 here is a
 routine event — an expired token — so what this function does on failure decides what an error
 grants. We return nothing.
 
@@ -131,11 +133,11 @@ grants. We return nothing.
   deployment where nobody configured the mapping serves nothing to everybody.
 - **A malformed configuration raises.** A mapping that will not parse stops the request rather than
   resolving to empty, so the two states are told apart.
-- **An unentitled caller never reaches the model.** They get an explicit denial, rather than an
-  answer assembled from the model's general knowledge.
+- **An unentitled caller never reaches the call to the index.** They get an explicit denial, rather
+  than an answer assembled from the model's general knowledge.
 - **Where entitlements come from is a scale decision.** A naming convention works, and it is what we
   shipped at Witteveen+Bos. Once a caller's access is a combination of columns, a declared table is
-  the mechanism that scales.
+  needed.
 
 Each has an alternative that grants access instead of refusing it. A permissive default serves the
 whole corpus the first time somebody forgets a variable. A malformed mapping degrading to empty
@@ -184,8 +186,8 @@ agent, the same two questions, one routing to Genie and one to the index.
 
 ![Same question, two callers](../../diagrams/rendered/chat-response.png)
 
-Both of David's answers are empty and look identical from the outside. On the Genie path the
-platform decided; on the index path our filter did.
+Both of David's answers are empty, and while the answers look identical, they are slightly different
+in mechanism. On the Genie path the platform decided; on the index path our filter did.
 
 We measured it: same user, same question, same model version, with the group mapping as the only
 variable. Mapped to the caller's real group, retrieval returned rows and a grounded answer. Mapped

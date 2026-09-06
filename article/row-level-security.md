@@ -95,11 +95,13 @@ Four mechanisms stack on a governed table, and it helps to know which question e
 The ABAC documentation has one pattern we now use everywhere. Tag everything
 `classification: unverified` by default at the catalog level, then write a policy that refuses
 anything still tagged that way. New tables are closed until somebody classifies them, rather
-than open until somebody notices.
+than open until somebody notices. The beta functionality of tag propagation and auto-tagging will
+help you implement this quickly.
 
 So far the platform is doing the work for you. Then you point a RAG pipeline at those documents,
 and the picture changes: ABAC governs *tables*. Tag a table, embed its contents, and the index that
-results inherits the grants but not the policy.
+results can take the grants but not the row-level security. You need to explicitly add metadata
+columns to filter on to the source table, and add filters to the query being sent to the index.
 
 ## The index does not inherit the filters
 
@@ -113,11 +115,10 @@ practice it is weaker, because platform enforcement gives notice when it goes wr
 application code fails however you happened to write it.
 
 A document travels through parsing, chunking, enrichment and embedding on its way to the index, and
-the security context does not reach the index. An embedding is a list of floats; whatever
-access control applied to the text it came from is not in there. What arrives is what you
-deliberately wrote into metadata columns alongside it, which means your ACL can never be more
-expressive than the columns you wrote at index time. Get that wrong and the fix is
-a rebuild rather than a grant.
+the security context does not reach the index. What arrives is what you deliberately wrote into
+metadata columns alongside it, which means your ACL can never be more expressive than the columns
+you wrote at index time. Because a schema change leads to recreating the table, you might spend a
+lot of tokens on reindexing your entire corpus.
 
 The related problem is that metadata **is** content. If you index `created_by_email` or `web_url`
 as a retrievable column, those values are visible to anyone who can query the index, whether or not they
@@ -139,7 +140,7 @@ from the source system, so the build side has to reach them before the serve sid
 anything. At Witteveen+Bos we pulled the SharePoint metadata over the
 Graph API as a separate step and joined it onto the chunks later. The Databricks SharePoint
 connector now exposes `_sharepoint_metadata` directly, which removes that join. It needs DBR 18
-LTS: on 17.3 the read still succeeds, with every metadata field absent.
+LTS, and on older versions the read still succeeds with every metadata field absent.
 
 Against a live index, a filter naming a real column and a real value returned rows, and the same
 query with a value that matches nothing returned zero. The second query is the one that proves the
@@ -194,8 +195,8 @@ def groups_for(token: str) -> list[str]:
     return [g["display"] for g in body.get("groups", [])]
 ```
 
-Using the caller's token rather than the endpoint's is the whole point: nobody can claim a
-membership they do not have, because they are not the one answering the question. A 401 here is a
+We use the caller's token rather than the endpoint's, so nobody can claim a membership they do not
+have, because they are not the one answering the question. A 401 here is a
 routine event — an expired token — so what this function does on failure decides what an error
 grants. We return nothing.
 
@@ -211,13 +212,14 @@ Four decisions in that layer shaped the rest:
   default, and it is a real default rather than a placeholder.
 - **A malformed configuration raises.** A mapping that will not parse stops the request rather than
   resolving to an empty entitlement, so the two states are told apart at the point they occur.
-- **An unentitled caller never reaches the model.** They get an explicit denial naming which of
-  their groups granted nothing, rather than an answer assembled from the model's general knowledge.
+- **An unentitled caller never reaches the call to the index.** They get an explicit denial naming
+  which of their groups granted nothing, rather than an answer assembled from the model's general
+  knowledge.
 - **Where entitlements come from is a scale decision.** A naming convention works, and it is what
   we shipped at Witteveen+Bos: the group's name holds the entitlement, which needs no
   configuration at all. It holds as long as one group maps to one thing. Once a caller's access is
-  a combination of metadata columns — a source system *and* a site *and* a sensitivity — the name
-  has to encode a tuple, and a declared table is the mechanism that scales. Then an unmapped
+  a combination of metadata columns — e.g. a source system *and* a site *and* a sensitivity — the
+  name has to encode a tuple, and a declared table is needed. Then an unmapped
   group grants nothing, and adding a source system is a reviewable change to a config value.
 
 ![ACL resolution per request](../diagrams/rendered/acl-flow-narrow.png)
@@ -391,8 +393,9 @@ enforces. The other is qualitative and routes to the index, where our own filter
 
 ![Same question, two callers](../diagrams/rendered/chat-response.png)
 
-Both of David's answers are empty, and from the outside they look identical. On the Genie path the
-platform decided. On the index path our filter decided — and had we passed no filter, or one naming
+Both of David's answers are empty, and while the answers look identical, they are slightly different
+in mechanism. On the Genie path the platform decided. On the index path our filter decided — and had
+we passed no filter, or one naming
 a column the index does not have, he would have received Water Delta chunks with no error and no
 warning. `obo_active` reads `true` in all four metadata boxes, which is what makes either zero
 readable.

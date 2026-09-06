@@ -68,28 +68,30 @@ aan een catalog of schema, en elk object met die tag valt eronder — inclusief 
 maand worden aangemaakt door iemand die niet weet dat de policy bestaat. Het patroon dat we nu
 overal gebruiken is standaard alles op catalogniveau taggen met `classification: unverified` en een
 policy schrijven die alles met die tag weigert, zodat nieuwe tabellen dicht zijn tot iemand ze
-classificeert.
+classificeert. De bètafunctionaliteit van tag propagation en auto-tagging helpt je dit snel te
+implementeren.
 
 ## De index neemt de filters niet over
 
-Een AI Search-index is een Unity Catalog-object met grants, dus je kunt bevragen toestaan of
-weigeren. Er zitten geen row filters en geen column masks op. Een index filteren is een parameter
-die je vanuit applicatiecode meegeeft.
+Een AI Search-index is een Unity Catalog-object met object-level grants, dus je kunt bevragen
+toestaan of weigeren. Er zitten geen row filters en geen column masks op. Een index filteren is een
+parameter die je vanuit applicatiecode meegeeft: je voegt zelf expliciet metadatakolommen om op te
+filteren aan de brontabel toe, en geeft filters mee aan de query die naar de index gaat.
 
 ![Governance-grens: tabel naar index](../../diagrams/rendered/governance-boundary-narrow.png)
 
 Een document gaat op weg naar de index door parsing, chunking en embedding, en de security-context
-bereikt de index niet. Een embedding is een rij floats. Wat aankomt, is wat je bewust in
-metadatakolommen ernaast hebt weggeschreven — dus je ACL kan nooit expressiever zijn dan de kolommen
-die je bij het indexeren hebt meegenomen. Kies je dat verkeerd, dan is de reparatie een rebuild in
-plaats van een grant.
+bereikt de index niet. Wat aankomt, is wat je bewust in metadatakolommen ernaast hebt weggeschreven
+— dus je ACL kan nooit expressiever zijn dan de kolommen die je bij het indexeren hebt meegenomen.
+Omdat een schemawijziging betekent dat de tabel opnieuw aangemaakt moet worden, kun je een hoop
+tokens kwijt zijn aan het opnieuw indexeren van je hele corpus.
 
 Die kolommen zijn ook een randvoorwaarde voor de build-kant en niet iets van de retrieval. Hun
 waarden komen meestal uit het bronsysteem, dus de pipeline moet erbij kunnen voordat de serve-kant
 ergens op kan filteren. Bij Witteveen+Bos haalden we de SharePoint-metadata als aparte stap over de
 Graph API op en joinden die later op de chunks; de Databricks SharePoint-connector stelt inmiddels
-`_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt. Dat vereist DBR 18 LTS: op
-17.3 slaagt de read nog steeds, maar zonder metadatavelden.
+`_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt. Dat vereist DBR 18 LTS, en op
+oudere versies slaagt de read nog steeds, maar zonder metadatavelden.
 
 Het bijbehorende probleem is dat metadata content **is**. Als je `created_by_email` of `web_url` als
 ophaalbare kolom indexeert, zijn die waarden zichtbaar voor iedereen die de index mag bevragen, of
@@ -122,9 +124,9 @@ def groups_for(token: str) -> list[str]:
     return [g["display"] for g in body.get("groups", [])]
 ```
 
-Het token van de aanroeper gebruiken in plaats van dat van het endpoint is waar het om draait:
-niemand kan een lidmaatschap claimen dat hij niet heeft, omdat hij niet degene is die de vraag
-beantwoordt. Een 401 is hier een routinegebeurtenis — een verlopen token — dus wat deze functie bij
+We gebruiken het token van de aanroeper in plaats van dat van het endpoint, zodat niemand een
+lidmaatschap kan claimen dat hij niet heeft, omdat hij niet degene is die de vraag beantwoordt. Een
+401 is hier een routinegebeurtenis — een verlopen token — dus wat deze functie bij
 een fout doet, bepaalt wat een fout verleent. Wij geven niets terug.
 
 > [!NOTE]
@@ -135,11 +137,11 @@ een fout doet, bepaalt wat een fout verleent. Wij geven niets terug.
   deployment waar niemand de mapping heeft ingevuld serveert niets aan iedereen.
 - **Een kapotte configuratie raist.** Een mapping die niet parset stopt het request in plaats van
   naar leeg te degraderen, zodat de twee toestanden uit elkaar te houden zijn.
-- **Een aanroeper zonder rechten bereikt het model nooit.** Die krijgt een expliciete weigering, en
-  geen antwoord dat uit de algemene kennis van het model is samengesteld.
+- **Een aanroeper zonder rechten bereikt de aanroep naar de index nooit.** Die krijgt een expliciete
+  weigering, en geen antwoord dat uit de algemene kennis van het model is samengesteld.
 - **Waar rechten uit komen is een schaalbeslissing.** Een naamconventie werkt, en het is wat we bij
   Witteveen+Bos hebben opgeleverd. Zodra de toegang van een aanroeper een combinatie van kolommen
-  is, is een gedeclareerde tabel het mechanisme dat meeschaalt.
+  is, is een gedeclareerde tabel nodig.
 
 Van elk daarvan bestaat een alternatief dat toegang geeft in plaats van weigert. Een permissieve
 default serveert het hele corpus zodra iemand een variabele vergeet. Een kapotte mapping die naar
@@ -189,8 +191,8 @@ dezelfde agent, dezelfde twee vragen, de ene naar Genie en de andere naar de ind
 
 ![Dezelfde vraag, twee aanroepers](../../diagrams/rendered/chat-response.png)
 
-Beide antwoorden van David zijn leeg en zien er van buiten hetzelfde uit. Op het Genie-pad heeft het
-platform beslist; op het indexpad ons filter.
+Beide antwoorden van David zijn leeg, en hoewel de antwoorden er hetzelfde uitzien, verschillen ze
+licht in mechanisme. Op het Genie-pad heeft het platform beslist; op het indexpad ons filter.
 
 We hebben het gemeten: dezelfde gebruiker, dezelfde vraag, dezelfde modelversie, met de
 groepsmapping als enige variabele. Gemapt op de echte groep van de aanroeper gaf retrieval rijen en

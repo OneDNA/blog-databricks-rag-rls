@@ -99,11 +99,14 @@ beantwoordt:
 In de ABAC-documentatie staat één patroon dat we nu overal gebruiken. Tag standaard alles op
 catalogniveau met `classification: unverified` en schrijf een policy die alles met die tag weigert.
 Nieuwe tabellen zijn dan dicht tot iemand ze classificeert, in plaats van open tot iemand het
-merkt.
+merkt. De bètafunctionaliteit van tag propagation en auto-tagging helpt je dit snel te
+implementeren.
 
 Tot hier doet het platform het werk voor je. Dan richt je een RAG-pipeline op die documenten en
 verandert het beeld: ABAC beschermt *tabellen*. Tag een tabel, embed de inhoud, en de index die
-daaruit komt erft de grants, maar niet de policy.
+daaruit komt kan de grants overnemen, maar niet de row-level security. Je moet zelf expliciet
+metadatakolommen om op te filteren aan de brontabel toevoegen, en filters meegeven aan de query die
+naar de index gaat.
 
 ## De index neemt de filters niet over
 
@@ -117,11 +120,10 @@ steeds afgebakend terug. In de praktijk is het zwakker, want platformhandhaving 
 als het misgaat en applicatiecode faalt zoals jij hem toevallig geschreven hebt.
 
 Een document gaat op weg naar de index door parsing, chunking, verrijking en embedding, en de
-security-context bereikt de index niet. Een embedding is een rij floats; welke
-toegangscontrole er ook gold voor de tekst waar hij uit komt, die zit er niet in. Wat aankomt, is
-wat je bewust in metadatakolommen ernaast hebt weggeschreven, wat betekent dat je ACL nooit
-expressiever kan zijn dan de kolommen die je bij het indexeren hebt meegenomen. Kies je dat
-verkeerd, dan is de reparatie een rebuild in plaats van een grant.
+security-context bereikt de index niet. Wat aankomt, is wat je bewust in metadatakolommen ernaast
+hebt weggeschreven, wat betekent dat je ACL nooit expressiever kan zijn dan de kolommen die je bij
+het indexeren hebt meegenomen. Omdat een schemawijziging betekent dat de tabel opnieuw aangemaakt
+moet worden, kun je een hoop tokens kwijt zijn aan het opnieuw indexeren van je hele corpus.
 
 Het bijbehorende probleem is dat metadata content **is**. Als je `created_by_email` of `web_url` als
 ophaalbare kolom indexeert, zijn die waarden zichtbaar voor iedereen die de index mag bevragen, of
@@ -142,8 +144,8 @@ Daarmee zijn ze een randvoorwaarde voor de pipeline en niet iets van de retrieva
 meestal uit het bronsysteem zelf komen, dus de build-kant moet erbij kunnen voordat de serve-kant
 ergens op kan filteren. Bij Witteveen+Bos haalden we de SharePoint-metadata als aparte stap over de
 Graph API op en joinden die later op de chunks. De Databricks SharePoint-connector stelt inmiddels
-`_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt. Dat vereist DBR 18 LTS: op
-17.3 slaagt de read nog steeds, maar zonder metadatavelden.
+`_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt. Dat vereist DBR 18 LTS, en op
+oudere versies slaagt de read nog steeds, maar zonder metadatavelden.
 
 Tegen een live index gaf een filter op een echte kolom met een echte waarde rijen terug, en
 dezelfde query met een waarde die nergens op matcht nul. Die tweede query bewijst dat het predicaat
@@ -199,10 +201,10 @@ def groups_for(token: str) -> list[str]:
     return [g["display"] for g in body.get("groups", [])]
 ```
 
-Het token van de aanroeper gebruiken in plaats van dat van het endpoint is waar het om draait:
-niemand kan een lidmaatschap claimen dat hij niet heeft, omdat hij niet degene is die de vraag
-beantwoordt. Een 401 is hier een routinegebeurtenis — een verlopen token — dus wat deze functie bij
-een fout doet, bepaalt wat een fout verleent. Wij geven niets terug.
+We gebruiken het token van de aanroeper in plaats van dat van het endpoint, zodat niemand een
+lidmaatschap kan claimen dat hij niet heeft, omdat hij niet degene is die de vraag beantwoordt. Een
+401 is hier een routinegebeurtenis — een verlopen token — dus wat deze functie bij een fout doet,
+bepaalt wat een fout verleent. Wij geven niets terug.
 
 > [!NOTE]
 > `/Me` geeft directe lidmaatschappen terug. Een workspace-lokale groep kan een Entra-groep als lid
@@ -217,15 +219,15 @@ Vier beslissingen in die laag bepaalden de rest:
 - **Een kapotte configuratie gooit een error.** Een mapping die niet parseert stopt het request in
   plaats van uit te komen op een leeg recht, zodat de twee toestanden van elkaar te onderscheiden
   zijn op het moment dat ze optreden.
-- **Een aanroeper zonder rechten bereikt het model nooit.** Hij krijgt een expliciete weigering die
-  vertelt welke van zijn groepen niets verleenden, in plaats van een antwoord uit de algemene
-  kennis van het model.
+- **Een aanroeper zonder rechten bereikt de aanroep naar de index nooit.** Hij krijgt een expliciete
+  weigering die vertelt welke van zijn groepen niets verleenden, in plaats van een antwoord uit de
+  algemene kennis van het model.
 - **Waar rechten uit komen is een schaalbeslissing.** Een naamconventie werkt, en het is wat we bij
   Witteveen+Bos hebben opgeleverd: de groepsnaam bevat het recht, waarvoor je niets hoeft te
   configureren. Dat houdt stand zolang één groep op één ding mapt. Zodra de toegang van een
-  aanroeper een combinatie van metadatakolommen is — een bronsysteem *én* een site *én* een
-  gevoeligheid — moet de naam een tuple coderen, en is een gedeclareerde tabel het mechanisme dat
-  meeschaalt. Dan verleent een niet-gemapte groep niets, en is een bronsysteem toevoegen een
+  aanroeper een combinatie van metadatakolommen is — bijvoorbeeld een bronsysteem *én* een site *én*
+  een gevoeligheid — moet de naam een tuple coderen, en is een gedeclareerde tabel nodig. Dan
+  verleent een niet-gemapte groep niets, en is een bronsysteem toevoegen een
   reviewbare wijziging in een configuratiewaarde.
 
 ![ACL-resolutie per request](../diagrams/rendered/acl-flow-narrow.png)
@@ -408,8 +410,9 @@ Catalog handhaaft. De andere is kwalitatief en gaat naar de index, waar ons eige
 
 ![Dezelfde vraag, twee aanroepers](../diagrams/rendered/chat-response.png)
 
-Beide antwoorden van David zijn leeg, en van buiten zien ze er hetzelfde uit. Op het Genie-pad heeft
-het platform beslist. Op het indexpad heeft ons filter beslist — en hadden we geen filter meegegeven,
+Beide antwoorden van David zijn leeg, en hoewel de antwoorden er hetzelfde uitzien, verschillen ze
+licht in mechanisme. Op het Genie-pad heeft het platform beslist. Op het indexpad heeft ons filter
+beslist — en hadden we geen filter meegegeven,
 of een filter dat een kolom noemt die de index niet heeft, dan had hij Water Delta-chunks gekregen
 zonder error en zonder waarschuwing. `obo_active` staat in alle vier de metadataboxen op `true`, en
 dat is wat beide nullen leesbaar maakt.

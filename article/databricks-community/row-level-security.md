@@ -4,37 +4,24 @@
 
 ---
 
-Two colleagues ask the same chatbot the same question. Should they get the same answer, or
-different ones because they are allowed to see different things? Every organisation that puts an AI
-assistant on top of its own documents runs into this sooner or later.
+Two colleagues ask the same chatbot the same question. Should they get the same answer, or different ones because they are allowed to see different things? Every organisation that puts an AI assistant on top of its own documents runs into this sooner or later.
 
-Unity Catalog answers that well for tables. Attach a row filter and a column mask, and every reader
-gets their own view of the same object, evaluated against whoever is asking. It does not answer it
-for a vector index. An AI Search index is a Unity Catalog object with grants, so you can allow or
-deny querying it, but it has no row filters and no column masks. Filtering an index is a
-parameter you pass in the query, from your own application code.
+Unity Catalog has a good implementation for that on calls to tables. Attach a row filter and a column mask, and every reader gets their own view of the same object, evaluated against whoever is asking. It does not have a type of grant for row filters *inside* a vector index. An AI Search index is a Unity Catalog object with object-level grants, so you can allow or deny querying it, but it has no row filters and no column masks. Filtering an index is a parameter you pass in the query, from your own application code.
 
 Databricks documents this.
 
-> "Row and column level permissions are not supported. However, you can implement your own
-> application level ACLs using the filter API."
+> "Row and column level permissions are not supported. However, you can implement your own application level ACLs using the filter API."
 > — [Databricks AI Search documentation](https://docs.databricks.com/aws/en/vector-search/vector-search)
 
-This post is about the implementation of this, and the caveats. We built per-user access control
-over a governed corpus at a civil engineering consultancy, reachable from applications outside
-Databricks — Microsoft Teams in our case. What follows is the design, the code, and the parts that
+This post is about the implementation of this, and the caveats. We built per-user access control over a governed corpus at a civil engineering consultancy, reachable from applications outside Databricks. In that project, it was reached from a Custom WebUI, but we use Microsoft Teams for this demo. What follows is the design, the code, and the parts that
 surprised us.
 
-The starting point was [Mastering RAG Chatbot Security: ACL and Metadata Filtering with Mosaic AI
-Vector
-Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot-security-acl-and-metadata-filtering-with/ba-p/101946),
-which tags chunks with a metadata column and passes a matching value as a query filter. That post
-passes the value in by hand. Resolving it from the caller is the part we had to add, and most of
-what is interesting lives there.
+The starting point was [Mastering RAG Chatbot Security: ACL and Metadata Filtering with Mosaic AI Vector Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot-security-acl-and-metadata-filtering-with/ba-p/101946),
+which tags chunks with a metadata column and passes a matching value as a query filter. That post passes the value in by hand. Resolving it from the caller is the part we had to add.
 
-## What the platform gives you on tables
+## What Unity Catalog does for RLS on tables
 
-Four mechanisms stack on a governed table, and it helps to know which question each answers:
+Unity Catalog has four mechanisms for access on a governed table, and it helps to know which question each answers:
 
 | Mechanism | The question it answers |
 | --- | --- |
@@ -53,57 +40,32 @@ RETURN is_account_group_member('group-water-delta') AND project_group = 'water-d
 ALTER TABLE project_hours SET ROW FILTER project_group_filter ON (project_group);
 ```
 
-We confirmed it resolves against the caller and not the table owner, then tested it by replacing the
-body with `RETURN project_group = 'NON_EXISTING_GROUP'` — a group no row has, so a working
-filter has to return nothing to everybody. It did, and restoring the original brought the rows back.
+It resolves against the caller and not the table owner, and you can test it by replacing the body with `RETURN project_group = 'NON_EXISTING_GROUP'` — a group no row has, so a working filter has to return nothing to everybody.
 
-That test matters more than it looks. A filter that is attached is not necessarily a filter that
-runs. `DESCRIBE TABLE EXTENDED` tells you it exists; changing it and watching the number move tells
-you it works.
+That is important. A filter that is attached is not necessarily a filter that runs. `DESCRIBE TABLE EXTENDED` tells you it exists; changing it and watching the results verifies that it works.
 
-Attribute-based access control went GA in April 2026 and scales this past table-by-table
-maintenance: tag the data, attach a policy to a catalog or schema, and every object with that tag
-is covered, including tables created next month by somebody who does not know the policy exists.
-`MATCH COLUMNS` finds the right column by tag rather than by name, so a table that spells it
-`team_code` instead of `project_group` is still covered.
+Attribute-based access control went GA in April 2026 and scales this past table-by-table maintenance: tag the data, attach a policy to a catalog or schema, and every object with that tag is covered, including tables created next month by another person.
+`MATCH COLUMNS` finds the right column by tag rather than by name, so a table that spells it `team_code` instead of `project_group` is still covered.
 
-One ABAC pattern is worth copying outright. Tag everything `classification: unverified` by default
-at the catalog level, then write a policy that refuses anything still tagged that way. New tables
-are then closed until somebody classifies them, rather than open until somebody notices.
+One ABAC pattern you can use for additional security: Tag everything `classification: unverified` by default at the catalog level, then write a policy that refuses anything still tagged that way. New tables are then closed until somebody classifies them, rather than open until somebody notices. The beta functionality of tag propagation and auto-tagging will help you implement this quickly.
 
-## Where that stops
+## AI Search does not have native RLS capabilities
 
-Point a RAG pipeline at those governed tables and the picture changes. ABAC governs *tables*. Tag a
-table, embed its contents, and the index that results inherits the grants but not the policy.
+Point an AI Search index at those governed tables and the picture changes. ABAC governs *tables*. Tag a table, embed its contents, and the index that results can take the grants but not the row-level security. You need to explicitly add metadata columns to filter on to the source table, and add filters to the query being sent to the index.
 
 ![Governance boundary: table to index](../../diagrams/rendered/governance-boundary-narrow.png)
 
-A document travels through parsing, chunking, enrichment and embedding on its way to the index, and
-the security context does not reach the index. An embedding is a list of floats. What arrives is
-what you deliberately wrote into metadata columns alongside it, which means your ACL can never be
-more expressive than the columns you wrote at index time. Get that wrong and the fix is a
-rebuild rather than a grant.
+A document travels through parsing, chunking, enrichment and embedding on its way to the index, and the security context does not reach the index. What arrives is what you deliberately wrote into metadata columns alongside it, which means your ACL can never be more expressive than the columns you wrote at index time. Because a schema change, leads to recreating the table, you might spend a lot of tokens on reindexing your entire corpus. Those columns are a build-side prerequisite, not a retrieval concern: their values usually come from the source system, so the pipeline has to reach them before the serve side can filter on anything.
 
-Those columns are a build-side prerequisite, not a retrieval concern. Their values usually come from
-the source system, so the pipeline has to reach them before the serve side can filter on anything.
-We pulled SharePoint metadata over the Graph API as a separate step and joined it onto the chunks
-later. The Databricks SharePoint connector now exposes `_sharepoint_metadata` directly, which
-removes that join — it needs DBR 18 LTS, and on 17.3 the read still succeeds with every metadata
-field absent.
+We pulled SharePoint metadata over the Graph API as a separate step and joined it onto the chunks later. The Databricks SharePoint connector now exposes `_sharepoint_metadata` directly, which removes that join — it needs DBR 18 LTS, and on older versions, the read still succeeds with every metadata field absent.
 
-A second caveat: metadata **is** content. If you index `created_by_email` or `web_url` as a
-retrievable column, those values are visible to anyone who can query the index, whether or not they
-can read the chunk text. The ACL has to apply before any column comes back, not just before the
-chunk body does.
+A second caveat: metadata **is** content. If you index `created_by_email` or `web_url` as a retrievable column, those values are visible to anyone who can query the index, whether or not they can read the chunk text. The ACL has to apply before any column comes back, not just before the chunk body does.
 
 > [!WARNING]
-> **A filter naming a column the index does not have is ignored.** No error, no warning — it stops
-> constraining, and the query still returns a plausible row count and a well-sourced answer. Rename
-> a column upstream, rebuild without a field, or typo it, and the caller receives every sensitivity
-> label in the corpus.
+> **A filter naming a column the index does not have is ignored.** No error, no warning — it stops constraining, and the query still returns a plausible row count and a well-sourced answer.
+> Rename a column upstream, rebuild without a field, or typo it, and the caller receives every sensitivity label in the corpus.
 
-That last one is why we assert every filter's keys against the columns the index actually has,
-before the query goes out, and raise rather than warn:
+That last one is why we assert every filter's keys against the columns the index actually has, before the query goes out, and raise rather than warn:
 
 ```python
 def assert_enforceable(filters: dict[str, Any]) -> None:
@@ -136,40 +98,28 @@ def groups_for(token: str) -> list[str]:
     return [g["display"] for g in body.get("groups", [])]
 ```
 
-Using the caller's token rather than the endpoint's is the whole point: nobody can claim a
-membership they do not have, because they are not the one answering the question.
+We use the caller's token rather than the endpoint's, so nobody can claim a membership they do not have, because they are not the one answering the question.
 
 > [!NOTE]
-> `/Me` returns direct memberships. A workspace-local group can have an Entra-sourced group as a
-> member, so somebody can be a transitive member of a group this call does not list, and removing
-> them from the outer group does not demote them.
+> `/Me` returns direct memberships. A workspace-local group can have an Entra-sourced group as a member, so somebody can be a transitive member of a group this call does not list, and removing them from the outer group does not demote them.
 
 ![ACL resolution per request](../../diagrams/rendered/acl-flow-narrow.png)
 
-Four decisions in that layer shaped the rest:
+There are four design questions implemented in that flow:
 
 - **Empty means nothing, not everything.** A caller with no mapped groups retrieves nothing, and a
   deployment where nobody configured the mapping serves nothing to everybody.
-- **A malformed configuration raises.** A mapping that will not parse stops the request rather than
-  resolving to empty, so the two states are told apart.
-- **An unentitled caller never reaches the model.** They get an explicit denial, rather than an
-  answer assembled from the model's general knowledge.
+- **A malformed configuration raises.** A mapping that will not parse stops the request rather than resolving to empty, so the two states are told apart.
+- **An unentitled caller never reaches the call to the index.** They get an explicit denial, rather than an answer assembled from the model's general knowledge.
 - **Where entitlements come from is a scale decision.** A naming convention works and needs no
-  configuration at all. Once a caller's access is a combination of columns — a source system *and* a
-  site *and* a sensitivity — the name has to encode a tuple, and a declared table is the mechanism
-  that scales.
+  configuration at all. Once a caller's access is a combination of columns — e.g. a source system *and* a site *and* a sensitivity — the name has to encode a tuple, and a declared table is needed.
 
-Each has an alternative that grants access instead of refusing it, and each alternative is one line.
-A 401 from SCIM is a routine event — an expired token — so what your error path returns decides what
-a routine failure grants. Measured against real workspace group names, a rule that read an
-entitlement out of any group whose name contained a known token turned an administration group into
+Each has an alternative that grants access instead of refusing it, and each alternative is one line. A 401 from SCIM is a routine event — an expired token — so what your error path returns decides what a routine failure grants. Measured against real workspace group names, a rule that read an entitlement out of any group whose name contained a known token turned an administration group into
 a claim on a source system.
 
 ## Making sure the agent knows who is asking
 
-All of that assumes the caller's identity reaches Unity Catalog rather than the deployer's.
-On-behalf-of does that, and two things decide whether it works: which host runs the chain, and how
-the token gets in.
+All of that assumes the caller's identity reaches Unity Catalog rather than the deployer's. On-behalf-of Authentication does that, and two things decide whether it works: which host runs the chain, and how the token gets in.
 
 | | Databricks Apps | Model Serving |
 | --- | --- | --- |
@@ -180,46 +130,25 @@ the token gets in.
 The moment the chain touches a file, Apps has to be the host. Write the chain so it does not know
 which host it is on and that stays a configuration change.
 
-Teams never yields a Databricks token. The Bot Framework OAuth prompt returns an **Entra** token,
-which Databricks rejects on workspace APIs, so the bot exchanges it at `/oidc/v1/token` (RFC 8693)
-and calls the endpoint with the result. That exchange needs an account-level federation policy
-trusting the issuer and audience, plus four Entra settings: `preferred_username` as an optional
-access-token claim, `requestedAccessTokenVersion` 2, an `access_as_user` scope, and the Bot
-Framework redirect URI.
+Teams never yields a Databricks token. The Bot Framework OAuth prompt returns an **Entra** token, which Databricks rejects on workspace APIs, so the bot exchanges it at `/oidc/v1/token` (RFC 8693) and calls the endpoint with the result. That exchange needs an account-level federation policy trusting the issuer and audience, plus four Entra settings: `preferred_username` as an optional access-token claim, `requestedAccessTokenVersion` 2, an `access_as_user` scope, and the Bot Framework redirect URI.
 
 > [!WARNING]
-> Every prerequisite here fails with no error message. Below `mlflow` 2.22.1 OBO is off by default
-> and the agent answers as the endpoint. A missing `databricks-ai-bridge` in the *logged*
-> requirements drops the agent back to its own identity. Each of the four Entra settings breaks the
-> exchange with an error naming something else.
+> Below `mlflow` 2.22.1 OBO is off by default and the agent answers as the endpoint. A missing `databricks-ai-bridge` in the requirements drops the agent back to its own identity.
 
-So assert on the identity that produced the answer, not on whether an answer arrived. A test that
-checks for a response passes identically whether every caller is being served their own permissions
-or the deployer's.
+To test, you need to assert on the identity that produced the answer, not on whether an answer arrived. A test that checks for a response passes identically whether every caller is being served their own permissions or the deployer's.
 
 ## The results
 
-Two colleagues, two projects, the same agent and the same two questions. Alice is on Water Delta;
-David is on Coastal North. Neither is an administrator and neither is locked out — David simply
-holds a grant on other data, which is the ordinary case and the one worth drawing.
+Two colleagues, two projects, the same agent and the same two questions. Alice is on project Water Delta; David is on Coastal North. Neither is an administrator and neither is locked out — David simply holds a grant on other data, which is the ordinary case.
 
 ![Same question, two callers](../../diagrams/rendered/chat-response.png)
 
-Ask *how many hours did we book on Water Delta in Q2* and the question is quantitative, so it routes
-to Genie and a SQL warehouse. Alice gets 1,240 hours across eight entries. David gets an empty
-result, because Unity Catalog evaluated the row filter against his identity and the hours table
-holds no Water Delta rows he can read.
+Ask *how many hours did we book on Water Delta in Q2* and the question is quantitative, so it routes to Genie and a SQL warehouse. Alice gets 1,240 hours across eight entries. David gets an empty result, because Unity Catalog evaluated the row filter against his identity and the hours table holds no Water Delta rows he can read.
 
-Ask *what went wrong on Water Delta, and what did we learn* and the question is qualitative, so it
-routes to the AI Search index. Alice gets six chunks and an answer citing the retrospective and the
-closeout note. David gets nothing, because our code passed `{"project_group": "coastal-north"}` and
-no chunk has it.
+Ask *what went wrong on Water Delta, and what did we learn* and the question is qualitative, so it routes to the AI Search index. Alice gets six chunks and an answer citing the retrospective and the closeout note. David gets nothing, because our code passed `{"project_group": "coastal-north"}` and no chunk has that group attached.
 
-Both of David's answers are empty, and from the outside they look identical. They are not. On the
-Genie path the platform decided, and it would have decided the same way for any caller on any
-client. On the AI Search path *our filter* decided — and had we passed no filter, or one naming a
-column the index does not have, he would have received Water Delta chunks with no error and no
-warning.
+Both of David's answers are empty, and while the answers look identical, they are slightly different in mechanism. On the Genie path the platform decided, and it would have decided the same way for any caller on any client. On the AI Search path *our filter* decided — and had we passed no filter, or one naming a
+column the index does not have, he would have received Water Delta chunks with no error and no warning.
 
 `obo_active` reads `true` in all four metadata boxes, which is what makes either zero readable.
 Without it a zero could mean "correctly filtered" or "identity broken", and the two are
