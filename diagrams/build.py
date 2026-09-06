@@ -73,10 +73,13 @@ def html(title: str, *lines: str, tcol: str = NAVY_DEEP, tsize: int = 12,
 # These rebuild the same content in a portrait frame: lanes stacked rather than side
 # by side, larger base fonts, and fewer words per box.
 
-NARROW_W = 760          # fits an article column at ~1:1
-N_TITLE = 15            # box titles
-N_DETAIL = 13           # detail lines
-N_NOTE = 13             # note shapes
+# Sized so the smallest text is still legible when the image is scaled to a narrow
+# article column: at 520px wide, 15px detail renders near 14px. Going wider than this
+# is what made the first attempt unreadable.
+NARROW_W = 560
+N_TITLE = 17            # box titles
+N_DETAIL = 15           # detail lines
+N_NOTE = 15             # note shapes
 
 
 def n_node(stroke: str, fill: str = WHITE, width: int = 2, dashed: bool = False) -> str:
@@ -1152,175 +1155,371 @@ def acl_flow():
 
 
 # ═════════════════════════════════════════════════════════════════════════════════
-# Narrow: governance boundary — the two zones stacked instead of side by side
+# Narrow variants. One column, full-width boxes, stacked top to bottom.
 # ═════════════════════════════════════════════════════════════════════════════════
-def governance_boundary_narrow():
-    d = Doc("rls-governance-narrow", "Governance boundary (narrow)", NARROW_W, 1000)
+X = 30                  # left margin
+W = 500                 # inner box width
 
-    d.add("t", n_title("Governance boundary: table to index",
-                       "A governed table has its filters.<br>The index built from it does not."),
+
+def _n_head(d, title, sub, h=96):
+    d.add("t", n_title(title, sub),
           f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
-          f"verticalAlign=middle;{FONT}", 30, 18, 700, 90)
+          f"verticalAlign=middle;{FONT}", X, 16, W, h)
 
-    # ── Governed ─────────────────────────────────────────────────────────────────
-    d.add("gov", esc("UNITY CATALOG GOVERNS THIS"), zone(GREEN, WHITE, 46), 30, 130, 700, 340)
 
+def _n_foot(d, y, text, h=132):
+    d.add("foot", esc(f'<span style="font-size:{N_NOTE}px;color:{NAVY_DEEP};">{text}</span>'),
+          f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
+          f"spacingLeft=16;spacingTop=12;verticalAlign=top;fontSize={N_NOTE};{FONT}",
+          X, y, W, h)
+    d.add("cred", esc(f'<span style="font-size:13px;color:{NAVY_SOFT};">OneDNA · onedna.nl</span>'),
+          f"text;html=1;align=right;verticalAlign=middle;fontSize=13;{FONT}",
+          X + 220, y + h + 10, 280, 26)
+
+
+def governance_boundary_narrow():
+    d = Doc("rls-governance-narrow", "Governance boundary (narrow)", NARROW_W, 1020)
+    _n_head(d, "Governance boundary", "A governed table has its filters.<br>"
+                                      "The index built from it does not.")
+
+    d.add("gov", esc("UNITY CATALOG GOVERNS THIS"), zone(GREEN, WHITE, 46), X, 130, W, 330)
     d.add("tbl", n_html("Governed table", "rows and columns in Unity Catalog"),
-          n_node(GREEN), 25, 70, 650, 72, "gov")
+          n_node(GREEN), 20, 66, 460, 74, "gov")
     d.badge("tblico", "unity-catalog", "tbl", size=32)
-
     d.add("rf", n_html("Row filter", "a UDF, evaluated per caller"),
-          n_node(GREEN) + "spacingLeft=18;", 25, 166, 315, 72, "gov")
-    d.add("cm", n_html("Column mask", "also per caller"),
-          n_node(GREEN) + "spacingLeft=18;", 360, 166, 315, 72, "gov")
-
-    d.add("govnote", esc(
-        f'<span style="font-size:{N_NOTE}px;color:{NAVY_DEEP};">Attached to the object itself, so '
-        f'every reader gets their own view of it — and a mistake here <b>gives notice</b>.</span>'),
-        n_note(GREEN, WHITE), 25, 254, 650, 62, "gov")
-
-    for cid, tgt in [("gl1", "rf"), ("gl2", "cm")]:
-        d.link(cid, "tbl", tgt, edge(GREEN, 2, arrow="none"),
+          n_node(GREEN) + "spacingLeft=18;", 20, 160, 460, 68, "gov")
+    d.add("cm", n_html("Column mask", "also evaluated per caller"),
+          n_node(GREEN) + "spacingLeft=18;", 20, 240, 460, 68, "gov")
+    for cid, a, b in (("gl1", "tbl", "rf"), ("gl2", "rf", "cm")):
+        d.link(cid, a, b, edge(GREEN, 2, arrow="none"),
                ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;", parent="gov")
 
-    # ── The crossing, now vertical ───────────────────────────────────────────────
     d.add("cross", esc(
         f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">chunk &#8594; embed &#8594; index</b>'
-        f'<br><span style="font-size:{N_DETAIL}px;color:{NAVY_SOFT};">an embedding is a list of '
-        f'floats</span><br><span style="font-size:{N_DETAIL}px;color:{LAVA_DEEP};">'
+        f'<br><span style="font-size:{N_DETAIL}px;color:{LAVA_DEEP};">'
         f'<b>the security context does not cross</b></span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT_LIGHT};strokeColor={OAT_LINE};"
         f"strokeWidth=2;align=center;verticalAlign=middle;fontSize={N_TITLE};{FONT}",
-        180, 496, 400, 92)
-
+        X + 90, 490, 320, 100)
     d.link("x1", "gov", "cross", edge(NAVY, 3), ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
 
-    # ── Ungoverned ───────────────────────────────────────────────────────────────
     d.add("ungov", esc("UNITY CATALOG DOES NOT GOVERN THIS"),
-          zone(LAVA_DEEP, WHITE, 46), 30, 600, 700, 340)
-
+          zone(LAVA_DEEP, WHITE, 46), X, 600, W, 260)
     d.add("idx", n_html("AI Search index", "a Unity Catalog object, with grants"),
-          n_node(LAVA_DEEP), 25, 70, 650, 72, "ungov")
+          n_node(LAVA_DEEP), 20, 66, 460, 74, "ungov")
     d.badge("idxico", "ai-search", "idx", size=32)
-
     d.add("gone", esc(
         f'<b style="font-size:{N_TITLE}px;color:{LAVA_DEEP};">What did not come along</b><br>'
-        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">no row filter · no column mask'
-        f'<br>filtering is a <b>query parameter</b> you pass from application code</span>'),
-        n_node(LAVA_DEEP, WHITE, 2, dashed=True) + "spacingLeft=18;verticalAlign=middle;",
-        25, 166, 650, 82, "ungov")
-
-    d.add("ungovnote", esc(
-        f'<span style="font-size:{N_NOTE}px;color:{NAVY_DEEP};">A filter naming a column the index '
-        f'does not have is <b>ignored</b>. No error, no log line, and a plausible row count.</span>'),
-        n_note(LAVA_DEEP, WHITE), 25, 260, 650, 56, "ungov")
-
+        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">no row filter, no column mask.'
+        f'<br>Filtering is a query parameter from your code.</span>'),
+        n_node(LAVA_DEEP, WHITE, 2, dashed=True) + "spacingLeft=18;", 20, 160, 460, 84, "ungov")
     d.link("il", "idx", "gone", edge(LAVA_DEEP, 2, dashed=True, arrow="none"),
            ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;", parent="ungov")
     d.link("x2", "cross", "ungov", edge(NAVY, 3), ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
 
-    d.add("cred", esc(f'<span style="font-size:13px;color:{NAVY_SOFT};">OneDNA · onedna.nl</span>'),
-          f"text;html=1;align=right;verticalAlign=middle;fontSize=13;{FONT}", 430, 960, 300, 26)
+    _n_foot(d, 885, "A filter naming a column the index does not have is <b>ignored</b>. No error, "
+                    "no log line, and a plausible row count.")
     d.write("governance-boundary-narrow.drawio")
 
 
-# ═════════════════════════════════════════════════════════════════════════════════
-# Narrow: build and serve — the two panels stacked
-# ═════════════════════════════════════════════════════════════════════════════════
 def build_and_serve_narrow():
-    d = Doc("rls-build-serve-narrow", "AI RAG agent and index development (narrow)",
-            NARROW_W, 1290)
+    d = Doc("rls-build-serve-narrow", "Build and serve (narrow)", NARROW_W, 1400)
+    _n_head(d, "AI RAG agent and index development",
+            "Build writes the index on a schedule.<br>Serve reads it on every request.")
 
-    d.add("t", n_title("AI RAG agent and index development",
-                       "Build runs on a schedule and writes the index.<br>"
-                       "Serve is a live request path and only reads it."),
-          f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
-          f"verticalAlign=middle;{FONT}", 30, 18, 700, 90)
-
-    # ── BUILD ────────────────────────────────────────────────────────────────────
-    d.add("build", esc("BUILD  ·  batch, scheduled"), zone(LAVA, WHITE, 46), 30, 130, 700, 510)
-
+    d.add("build", esc("BUILD  ·  batch, scheduled"), zone(LAVA, WHITE, 46), X, 130, W, 510)
     d.add("src", n_html("Source systems", "SharePoint, fileshares.",
-                        "Owners publish there; nothing is copied by hand."),
-          n_node(OAT_LINE) + "spacingLeft=18;", 25, 70, 320, 112, "build")
+                        "Owners publish there."),
+          n_node(OAT_LINE) + "spacingLeft=18;", 20, 66, 460, 93, "build")
     d.add("prep", n_html("Preprocessing", "raw &#8594; bronze &#8594; silver &#8594; gold",
                          "parse, chunk, enrich, embed"),
-          n_node(LAVA) + "spacingLeft=18;", 365, 70, 310, 112, "build")
-
+          n_node(LAVA) + "spacingLeft=18;", 20, 176, 460, 93, "build")
     d.add("idx", esc(f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">AI Search index</b>'
                      f'<br><span style="font-size:{N_DETAIL}px;color:{NAVY_SOFT};">'
                      f'written only here</span>'),
-          store(LAVA) + f"fontSize={N_TITLE};", 25, 212, 320, 92, "build")
-
-    d.add("cols", esc(
-        f'<b style="font-size:{N_TITLE}px;color:{LAVA_DEEP};">The index has no row filter</b><br>'
-        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">Whatever the ACL needs at query '
-        f'time has to be written into a metadata column here, at build. Changing that later means '
-        f'a rebuild.</span>'),
-        n_note(LAVA_DEEP, WHITE), 365, 212, 310, 140, "build")
-
+          store(LAVA) + f"fontSize={N_TITLE};", 20, 286, 460, 86, "build")
     d.add("agent", n_html("Agent development", "chain &#8594; tool &#8594; retriever &#8594; ACL",
-                          "built and versioned separately, then deployed as one endpoint"),
-          n_node(LAVA) + "spacingLeft=18;", 25, 330, 320, 118, "build")
-
-    d.add("uc", n_html("Unity Catalog", "one governance layer over both:",
-                       "lineage for every artefact, and the grants the ACL resolves against"),
-          n_node(GREEN) + "spacingLeft=18;", 365, 370, 310, 118, "build")
-
+                          "versioned separately, deployed as one endpoint"),
+          n_node(LAVA) + "spacingLeft=18;", 20, 390, 460, 93, "build")
     d.link("b1", "src", "prep", edge(LAVA), "",
-           ports="exitX=1;exitY=0.5;entryX=0;entryY=0.5;", parent="build")
+           ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;", parent="build")
     d.link("b2", "prep", "idx", edge(LAVA), "writes",
-           [(185, 192)], "exitX=0.5;exitY=1;entryX=0.5;entryY=0;", parent="build")
+           ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;", parent="build")
     d.link("b3", "agent", "idx", edge(NAVY, 2, dashed=True), "built against",
            ports="exitX=0.5;exitY=0;entryX=0.5;entryY=1;", parent="build")
 
-    # ── SERVE ────────────────────────────────────────────────────────────────────
-    d.add("serve", esc("SERVE  ·  live request"), zone(LAVA, WHITE, 46), 30, 650, 700, 500)
-
-    d.add("ui", n_html("User interface", "Teams, web UI.", "Asks questions, gets answers."),
-          n_node(OAT_LINE) + "spacingLeft=18;", 25, 70, 320, 96, "serve")
-    d.badge("uiico", "ms-teams", "ui", size=32)
-
-    d.add("dep", n_html("Deployed agent", "chain &#8594; tool &#8594; ACL &#8594; data",
-                        "the ACL narrows retrieval to the caller,",
+    d.add("serve", esc("SERVE  ·  live request"), zone(LAVA, WHITE, 46), X, 670, W, 510)
+    d.add("ui", n_html("User interface", "Teams or a web UI."),
+          n_node(OAT_LINE) + "spacingLeft=18;", 20, 66, 460, 68, "serve")
+    d.badge("uiico", "ms-teams", "ui", size=30)
+    d.add("dep", n_html("Deployed agent", "the ACL narrows retrieval to the caller,",
                         "so one agent serves every audience"),
-          n_node(LAVA) + "spacingLeft=18;", 25, 200, 400, 128, "serve")
-
-    d.add("read", esc(f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">the same AI Search '
-                      f'index</b><br><span style="font-size:{N_DETAIL}px;color:{NAVY_SOFT};">'
+          n_node(LAVA) + "spacingLeft=18;", 20, 152, 460, 93, "serve")
+    d.add("read", esc(f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">the same index</b>'
+                      f'<br><span style="font-size:{N_DETAIL}px;color:{NAVY_SOFT};">'
                       f'read at query time, never written</span>'),
-          store(LAVA) + f"fontSize={N_TITLE};", 445, 200, 230, 128, "serve")
-
+          store(LAVA) + f"fontSize={N_TITLE};", 20, 262, 220, 100, "serve")
     d.add("gen", n_html("Genie space", "SQL over governed tables.",
                         "Unity Catalog evaluates the caller."),
-          n_node(GREEN) + "spacingLeft=18;", 25, 360, 400, 104, "serve")
-
+          n_node(GREEN) + "spacingLeft=18;", 260, 262, 220, 135, "serve")
     d.add("who", esc(
-        f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">Who enforces on each branch</b><br>'
-        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">To the index: your ACL, in code, '
-        f'at query time.<br>To Genie: Unity Catalog, per caller.<br><br>'
-        f'Both run on the caller\'s credentials.</span>'),
-        n_note(), 445, 350, 230, 148, "serve")
-
+        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">To the index: <b>your ACL</b>, in '
+        f'code. To Genie: <b>Unity Catalog</b>, per caller. Both on the caller\'s credentials.'
+        f'</span>'),
+        n_note(), 20, 412, 460, 62, "serve")
     d.link("s1", "ui", "dep", edge(), "",
            ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;", parent="serve")
     d.link("s2", "dep", "read", edge(LAVA), "",
-           ports="exitX=1;exitY=0.5;entryX=0;entryY=0.5;", parent="serve")
-    d.link("s3", "dep", "gen", edge(GREEN), "data question",
-           ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;", parent="serve")
+           ports="exitX=0.25;exitY=1;entryX=0.5;entryY=0;", parent="serve")
+    d.link("s3", "dep", "gen", edge(GREEN), "",
+           ports="exitX=0.75;exitY=1;entryX=0.5;entryY=0;", parent="serve")
 
-    d.add("foot", esc(
-        f'<span style="font-size:{N_NOTE}px;color:{NAVY_DEEP};">Enforcing the ACL at query time '
-        f'means no per-audience index and no copy of the corpus outside Databricks. The trade is '
-        f'that the access decision runs in code you wrote on the serve side, against columns you '
-        f'chose on the build side.</span>'),
-        f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
-        f"spacingLeft=18;spacingTop=12;verticalAlign=top;fontSize={N_NOTE};{FONT}",
-        30, 1175, 700, 74)
-
-    d.add("cred", esc(f'<span style="font-size:13px;color:{NAVY_SOFT};">OneDNA · onedna.nl</span>'),
-          f"text;html=1;align=right;verticalAlign=middle;fontSize=13;{FONT}", 430, 1256, 300, 26)
+    _n_foot(d, 1210, "Enforcing the ACL at query time means no per-audience index and no copy of "
+                    "the corpus outside Databricks. The trade is that the access decision runs in "
+                    "code you wrote on the serve side.")
     d.write("build-and-serve-narrow.drawio")
+
+
+def acl_flow_narrow():
+    """One column, top to bottom: resolve the caller, then build and check the filter."""
+    d = Doc("rls-acl-flow-narrow", "ACL resolution per request (narrow)", NARROW_W, 1500)
+    _n_head(d, "ACL resolution per request",
+            "Every branch that cannot resolve the caller ends closed.")
+
+    y = 130
+    steps = [
+        ("caller", n_html("Caller", "a human, in Teams"), n_plain(NAVY, OAT_LIGHT), 66),
+        ("tok", n_html("Their OBO token", "not the endpoint's identity"), n_node(OAT_LINE), 74),
+        ("scim", n_html("SCIM /Me", "group memberships, resolved",
+                        "with the caller's own credentials"),
+         n_node(LAVA) + "spacingLeft=18;", 90),
+        ("groups", n_html("groups", "[group-a, group-b, …]"), n_plain(OAT_LINE, OAT_LIGHT), 70),
+    ]
+    for cid, label, style, h in steps:
+        d.add(cid, label, style, X, y, W, h)
+        y += h + 26
+
+    d.add("grantmap", esc(f'<b style="font-size:{N_TITLE}px;">declared grants table</b>'
+                          f'<br><span style="font-size:{N_DETAIL}px;color:{NAVY_SOFT};">'
+                          f'an unmapped group grants nothing</span>'),
+          n_decision(), X + 40, y, W - 80, 110)
+    y += 136
+
+    d.add("ent", esc(
+        f'<b style="font-size:{N_TITLE}px;">Entitlements</b><br>'
+        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">'
+        f'source_systems · site_ids · sensitivity_labels</span>'),
+        n_node(LAVA) + "spacingLeft=18;", X, y, W, 82)
+    y += 108
+
+    d.add("empty", esc(f'<b style="font-size:{N_TITLE}px;">is_empty?</b>'),
+          n_decision(), X + 120, y, W - 240, 84)
+    y += 110
+
+    d.add("zero", esc(
+        f'<b style="font-size:{N_TITLE}px;color:{LAVA_DEEP};">yes &#8594; return no rows</b><br>'
+        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">an explicit denial. '
+        f'<b>The model is never called.</b></span>'),
+        n_node(LAVA_DEEP, WHITE, 3) + "spacingLeft=18;", X, y, W, 82)
+    y += 108
+
+    d.add("filt", n_html("no &#8594; build_filter()", "entitlement over any caller-supplied filter"),
+          n_node(LAVA) + "spacingLeft=18;", X, y, W, 74)
+    y += 100
+
+    d.add("assert", esc(f'<b style="font-size:{N_TITLE}px;">assert_enforceable</b>'),
+          n_decision(), X + 80, y, W - 160, 84)
+    y += 110
+
+    d.add("err", esc(
+        f'<b style="font-size:{N_TITLE}px;color:{LAVA_DEEP};">unknown axis &#8594; '
+        f'PermissionError</b><br><span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">'
+        f'filtering on it would be ignored, so the request stops</span>'),
+        n_node(LAVA_DEEP, WHITE, 3) + "spacingLeft=18;", X, y, W, 82)
+    y += 108
+
+    d.add("query", n_html("ok &#8594; AI Search query", "+ the entitlement filter"),
+          n_node(GREEN) + "spacingLeft=48;", X, y, W, 74)
+    d.add("qico", "", icon("ai-search"), X + 12, y + 20, 32, 32)
+    y += 100
+
+    # The happy path runs straight down. The two terminal states hang off their
+    # decision to the left, so a reader does not read them as steps on the way through.
+    main = ["caller", "tok", "scim", "groups", "grantmap", "ent", "empty",
+            "filt", "assert", "query"]
+    # A single column, read top to bottom. The two terminal boxes are labelled with the
+    # branch that reaches them ("yes ->", "unknown axis ->") and coloured deep lava, so
+    # they read as exits rather than as steps the happy path passes through.
+    chain = ["caller", "tok", "scim", "groups", "grantmap", "ent", "empty",
+             "zero", "filt", "assert", "err", "query"]
+    for i, (a, b) in enumerate(zip(chain, chain[1:])):
+        terminal = b in ("zero", "err")
+        d.link(f"n{i}", a, b, edge(LAVA_DEEP if terminal else NAVY, 3 if terminal else 2),
+               ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
+
+    _n_foot(d, y + 10, "Empty means nothing, not everything. A malformed mapping raises rather "
+                       "than resolving to empty, so \"no entitlement\" and \"something broke\" "
+                       "tell themselves apart.")
+    d.write("acl-flow-narrow.drawio")
+
+
+def decision_tree_narrow():
+    """The same two questions, asked one under the other."""
+    d = Doc("rls-decision-narrow", "Enforcement path selection (narrow)", NARROW_W, 1340)
+    _n_head(d, "Enforcement path selection",
+            "Who enforces access control on each path,<br>and how it is verified.")
+
+    d.add("start", esc(f'<b style="font-size:{N_TITLE}px;">You need per-user access control<br>'
+                       f'over retrieved content</b>'),
+          f"ellipse;html=1;whiteSpace=wrap;fillColor={OAT_LIGHT};strokeColor={NAVY};"
+          f"strokeWidth=2;align=center;verticalAlign=middle;fontSize={N_TITLE};"
+          f"fontColor={NAVY_DEEP};{FONT}", X + 40, 130, W - 80, 90)
+
+    d.add("d1", esc(f'<b style="font-size:{N_TITLE}px;">Is the content structured?</b>'),
+          n_decision(), X + 80, 254, W - 160, 92)
+
+    d.add("uc", esc(
+        f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">yes &#8594; Unity Catalog RLS</b><br>'
+        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">Row filters and column masks, or '
+        f'an ABAC policy at catalog scope. <b>The platform enforces</b>, per caller, and it holds '
+        f'across the agent and Teams hops.</span>'),
+        n_node(GREEN, WHITE, 3) + "spacingLeft=48;", X, 380, W, 108)
+    d.add("ucico", "", icon("unity-catalog"), X + 12, 418, 30, 30)
+
+    d.add("note1", esc(
+        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">On a non-interactive path the '
+        f'service principal is the whole of your access control. Review its grants.</span>'),
+        n_note(LAVA_DEEP, WHITE), X, 508, W, 68)
+
+    d.add("d2", esc(f'<b style="font-size:{N_TITLE}px;">no &#8594; does the ACL fit the '
+                    f'index metadata columns?</b>'),
+          n_decision(), X + 40, 606, W - 80, 116)
+
+    d.add("code", esc(
+        f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">yes &#8594; code ACL + '
+        f'assert_enforceable</b><br><span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">'
+        f'You enforce, at query time. Resolve groups per request from the caller\'s own token; map '
+        f'via a declared table. Test the denial path.</span>'),
+        n_node(LAVA, WHITE, 3) + "spacingLeft=48;", X, 756, W, 108)
+    d.add("codeico", "", icon("ai-search"), X + 12, 794, 30, 30)
+
+    d.add("pg", esc(
+        f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">no &#8594; consider pgvector on '
+        f'Lakebase</b><br><span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">Your ACL becomes '
+        f'a row-level security policy the engine evaluates, rather than your retrieval code.</span>'),
+        n_node(NAVY, WHITE, 3) + "spacingLeft=48;", X, 884, W, 96)
+    d.add("pgico", "", icon("lakebase"), X + 12, 916, 30, 30)
+
+    d.add("d3", esc(f'<b style="font-size:{N_TITLE}px;">Does the chain need UC Volumes '
+                    f'or file operations?</b>'),
+          n_decision(), X + 40, 1000, W - 80, 116)
+
+    d.add("host", esc(
+        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">'
+        f'<b>yes</b> &#8594; Databricks Apps is the only host that reaches Volumes.<br>'
+        f'<b>no</b> &#8594; either host. Write the chain so it does not know which, and that stays '
+        f'a configuration change.</span>'),
+        n_note(LAVA, WHITE), X, 1140, W, 80)
+
+    for i, (a, b) in enumerate((("start", "d1"), ("d1", "uc"), ("uc", "note1"),
+                                ("note1", "d2"), ("d2", "code"), ("code", "pg"),
+                                ("pg", "d3"), ("d3", "host"))):
+        style = edge(NAVY, 2) if b not in ("uc",) else edge(GREEN, 3)
+        d.link(f"t{i}", a, b, style, ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
+
+    d.write("decision-tree-narrow.drawio")
+
+
+def architecture_narrow():
+    """The three lanes stacked: identity, then build, then serve."""
+    d = Doc("rls-architecture-narrow", "RLS architecture (narrow)", NARROW_W, 1700)
+    _n_head(d, "Row-level security in a<br>Databricks RAG pipeline",
+            "Border colour shows which layer enforces.", h=118)
+
+    # Legend
+    d.add("lg", esc(f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">'
+                    f'<b><span style="color:{GREEN};">&#9632;</span> Unity Catalog enforces</b>'
+                    f' &nbsp; <b><span style="color:{LAVA};">&#9632;</span> your code enforces</b>'
+                    f'<br><b><span style="color:{LAVA_DEEP};">&#9632;</span> nothing enforces</b>'
+                    f'</span>'),
+          f"rounded=0;html=1;whiteSpace=wrap;fillColor={WHITE};strokeColor={OAT_LINE};"
+          f"strokeWidth=1;align=left;spacingLeft=12;verticalAlign=middle;"
+          f"fontSize={N_DETAIL};{FONT}", X, 146, W, 56)
+
+    # ── IDENTITY ─────────────────────────────────────────────────────────────────
+    d.add("id", esc("IDENTITY  ·  which caller reaches Unity Catalog"),
+          zone(LAVA, WHITE, 46), X, 216, W, 368)
+    d.add("usr", n_html("User asks a question", "in Teams, or a web UI"),
+          n_node(OAT_LINE) + "spacingLeft=48;", 20, 66, 460, 68, "id")
+    d.add("usrico", "", icon("ms-person"), 32, 90, 30, 30, "id")
+    d.add("exch", n_html("RFC 8693 token exchange", "Teams returns an Entra token;",
+                         "Databricks rejects it, so the bot swaps it"),
+          n_node(OAT_LINE) + "spacingLeft=48;", 20, 154, 460, 90, "id")
+    d.add("exchico", "", icon("az-appreg"), 32, 184, 30, 30, "id")
+    d.add("host", esc(
+        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">'
+        f'<b>Apps</b> reads the token from a header and reaches Volumes.<br>'
+        f'<b>Model Serving</b> holds it in the runtime, but not Volumes.</span>'),
+        n_note(LAVA, WHITE), 20, 268, 460, 76, "id")
+    d.link("i1", "usr", "exch", edge(), "", ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;",
+           parent="id")
+    d.link("i2", "exch", "host", edge(), "", ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;",
+           parent="id")
+
+    # ── BUILD ────────────────────────────────────────────────────────────────────
+    d.add("bl", esc("BUILD  ·  where platform enforcement stops"),
+          zone(LAVA, WHITE, 46), X, 614, W, 360)
+    d.add("pipe", n_html("Gather &#8594; parse &#8594; chunk &#8594; enrich &#8594; embed",
+                         "one governed Unity Catalog artefact per stage"),
+          n_node(LAVA) + "spacingLeft=18;", 20, 62, 460, 96, "bl")
+    d.add("brk", esc(
+        f'<b style="font-size:{N_TITLE}px;color:{LAVA_DEEP};">enforcement stops here</b><br>'
+        f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">a vector is a list of floats; '
+        f'the security context does not reach the index</span>'),
+        n_node(LAVA_DEEP, WHITE, 3, dashed=True) + "spacingLeft=18;", 20, 172, 460, 93, "bl")
+    d.add("srv", n_html("AI Search index", "the ACL columns must be written here, at build"),
+          n_node(LAVA) + "spacingLeft=48;", 20, 280, 460, 74, "bl")
+    d.add("srvico", "", icon("ai-search"), 32, 302, 30, 30, "bl")
+    d.link("p1", "pipe", "brk", edge(LAVA_DEEP, 3), "",
+           ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;", parent="bl")
+    d.link("p2", "brk", "srv", edge(LAVA_DEEP, 3), "",
+           ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;", parent="bl")
+
+    # ── SERVE ────────────────────────────────────────────────────────────────────
+    d.add("sv", esc("SERVE  ·  two retrieval paths, two enforcers"),
+          zone(LAVA, WHITE, 46), X, 1004, W, 470)
+    d.add("agent", n_html("RAG agent", "runs on the caller's credentials"),
+          n_node(LAVA) + "spacingLeft=48;", 20, 62, 460, 68, "sv")
+    d.add("agentico", "", icon("agent-bricks"), 32, 86, 30, 30, "sv")
+    d.add("acl", n_html("SCIM &#8594; grants table &#8594; assert_enforceable",
+                        "raise, never warn"),
+          n_node(LAVA) + "spacingLeft=18;", 20, 142, 460, 96, "sv")
+    d.add("idx2", n_html("AI Search index", "similarity + your filter"),
+          n_node(LAVA) + "spacingLeft=18;", 20, 252, 220, 93, "sv")
+    d.add("genie", n_html("Genie space", "SQL, Unity Catalog per caller"),
+          n_node(GREEN) + "spacingLeft=18;", 260, 252, 220, 93, "sv")
+    d.add("ans", esc(
+        f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">Answer + which control applied</b>'
+        f'<br><span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">so a citation traces back to '
+        f'the permission that admitted it</span>'),
+        n_node(NAVY, WHITE, 3) + "spacingLeft=18;", 20, 358, 460, 93, "sv")
+    d.link("v1", "agent", "acl", edge(), "", ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;",
+           parent="sv")
+    d.link("v2", "acl", "idx2", edge(LAVA, 2), "", ports="exitX=0.25;exitY=1;entryX=0.5;entryY=0;",
+           parent="sv")
+    d.link("v3", "acl", "genie", edge(GREEN, 2), "", ports="exitX=0.75;exitY=1;entryX=0.5;entryY=0;",
+           parent="sv")
+    d.link("v4", "idx2", "ans", edge(LAVA, 2), "", ports="exitX=0.5;exitY=1;entryX=0.25;entryY=0;",
+           parent="sv")
+    d.link("v5", "genie", "ans", edge(GREEN, 2), "", ports="exitX=0.5;exitY=1;entryX=0.75;entryY=0;",
+           parent="sv")
+
+    d.link("z1", "id", "bl", edge(NAVY, 3), "", ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
+    d.link("z2", "bl", "sv", edge(NAVY, 3), "", ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
+
+    _n_foot(d, 1504, "Every failure marked here happens with no error. Where Unity Catalog "
+                     "enforces, a mistake raises; where your code does, it returns rows.")
+    d.write("architecture-narrow.drawio")
 
 
 if __name__ == "__main__":
@@ -1333,3 +1532,6 @@ if __name__ == "__main__":
     print("  narrow variants, for an article column:")
     governance_boundary_narrow()
     build_and_serve_narrow()
+    acl_flow_narrow()
+    decision_tree_narrow()
+    architecture_narrow()
