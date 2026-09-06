@@ -13,7 +13,11 @@ AI-assistent op haar eigen documenten zet, loopt hier vroeg of laat tegenaan.
 Zo'n systeem hebben we op Databricks gebouwd: een RAG-keten over een beheerd corpus, bereikbaar
 vanuit applicaties buiten Databricks, met toegangscontrole per gebruiker. RAG op de native AI Search
 (voorheen Vector Search) heeft geen voorziening voor row-level security, dus hebben we het zelf
-gebouwd, en grondig getest.
+gebouwd. Het vertrekpunt was [Mastering RAG Chatbot Security: ACL and Metadata Filtering with Mosaic
+AI Vector
+Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot-security-acl-and-metadata-filtering-with/ba-p/101946),
+dat chunks tagt met een metadatakolom en een bijpassende waarde als queryfilter meegeeft. Die post
+geeft die waarde met de hand mee; wat wij eraan moesten toevoegen was hem uit de aanroeper afleiden.
 
 ## AI RAG-agent en indexontwikkeling
 
@@ -49,9 +53,22 @@ enkele rij draagt — moet iedereen niets teruggeven, en dat deed het. Met het o
 de rijen weer. Een filter dat eraan hangt, is niet per se een filter dat draait. `DESCRIBE TABLE
 EXTENDED` vertelt je dát het bestaat; het veranderen vertelt je dat het wérkt.
 
+Op een beheerde tabel stapelen vier mechanismen, en het helpt om te weten welke vraag elk ervan
+beantwoordt:
+
+| Mechanisme | De vraag die het beantwoordt |
+| --- | --- |
+| Object privileges | mag je deze tabel überhaupt aanraken? |
+| ABAC-policy | welke regel geldt hier, op tag, over de hele catalog? |
+| Row filter | welke rijen krijg jij terug? |
+| Column mask | welke waarden daarin mag jij lezen? |
+
 Attribute-based access control is sinds april 2026 GA en schaalt dit: tag de data, hang een policy
 aan een catalog of schema, en elk object met die tag valt eronder — inclusief tabellen die volgende
-maand worden aangemaakt door iemand die niet weet dat de policy bestaat.
+maand worden aangemaakt door iemand die niet weet dat de policy bestaat. Het patroon dat we nu
+overal gebruiken is standaard alles op catalogniveau taggen met `classification: unverified` en een
+policy schrijven die alles met die tag weigert, zodat nieuwe tabellen dicht zijn tot iemand ze
+classificeert.
 
 ## De index neemt de filters niet over
 
@@ -69,7 +86,15 @@ plaats van een grant.
 
 Die kolommen zijn ook een randvoorwaarde voor de build-kant en niet iets van de retrieval. Hun
 waarden komen meestal uit het bronsysteem, dus de pipeline moet erbij kunnen voordat de serve-kant
-ergens op kan filteren.
+ergens op kan filteren. Bij Witteveen+Bos haalden we de SharePoint-metadata als aparte stap over de
+Graph API op en joinden die later op de chunks; de Databricks SharePoint-connector stelt inmiddels
+`_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt. Dat vereist DBR 18 LTS: op
+17.3 slaagt de read nog steeds, maar zonder metadatavelden.
+
+Het bijbehorende probleem is dat metadata content **is**. Als je `created_by_email` of `web_url` als
+ophaalbare kolom indexeert, zijn die waarden zichtbaar voor iedereen die de index mag bevragen, of
+ze de chunktekst nu mogen lezen of niet. De ACL moet toeslaan vóórdat welke kolom dan ook terugkomt,
+niet alleen vóór de chunktekst.
 
 > [!WARNING]
 > **Een filter dat een kolom noemt die de index niet heeft, wordt genegeerd.** Geen error, geen
@@ -83,6 +108,29 @@ credentials. Een veertig regels, misschien.
 
 ![ACL-resolutie per request](../../diagrams/rendered/acl-flow.png)
 
+De groepen komen uit één call, met het token van de aanroeper zelf in de header:
+
+```python
+def groups_for(token: str) -> list[str]:
+    # Vraag Databricks wie de aanroeper is, als de aanroeper.
+    req = urllib.request.Request(
+        f"{WORKSPACE}/api/2.0/preview/scim/v2/Me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        body = json.loads(resp.read())
+    return [g["display"] for g in body.get("groups", [])]
+```
+
+Het token van de aanroeper gebruiken in plaats van dat van het endpoint is waar het om draait:
+niemand kan een lidmaatschap claimen dat hij niet heeft, omdat hij niet degene is die de vraag
+beantwoordt. Een 401 is hier een routinegebeurtenis — een verlopen token — dus wat deze functie bij
+een fout doet, bepaalt wat een fout verleent. Wij geven niets terug.
+
+> [!NOTE]
+> `/Me` geeft directe lidmaatschappen terug. Een workspace-lokale groep kan een Entra-groep als lid
+> hebben, dus iemand kan transitief lid zijn van een groep die deze call niet noemt.
+
 - **Leeg betekent niets, niet alles.** Een aanroeper zonder gemapte groepen haalt niets op, en een
   deployment waar niemand de mapping heeft ingevuld serveert niets aan iedereen.
 - **Een kapotte configuratie raist.** Een mapping die niet parset stopt het request in plaats van
@@ -94,19 +142,42 @@ credentials. Een veertig regels, misschien.
   is, is een gedeclareerde tabel het mechanisme dat meeschaalt.
 
 Van elk daarvan bestaat een alternatief dat toegang geeft in plaats van weigert. Een permissieve
-default
-serveert het hele corpus zodra iemand een variabele vergeet. Een kapotte mapping die naar leeg
-degradeert lijkt precies op een terecht lege. Een groepsnaam los interpreteren geeft toegang weg aan
-iedereen die een groep mag aanmaken — gemeten tegen echte workspace-groepen maakte dat van een
-beheergroep een claim op een bronsysteem.
+default serveert het hele corpus zodra iemand een variabele vergeet. Een kapotte mapping die naar
+leeg degradeert lijkt precies op een terecht lege. Een groepsnaam los interpreteren geeft toegang
+weg aan iedereen die een groep mag aanmaken — gemeten tegen echte workspace-groepen maakte dat van
+een beheergroep een claim op een bronsysteem.
+
+Twee gewoonten kwamen uit het twee keer bouwen hiervan. Merge het rechtenfilter van de aanroeper
+óver eventuele filters die de aanroeper zelf meegeeft in plaats van eronder, en wikkel een
+meegegeven boolean in een `and`; anders kan een aanroeper zijn eigen ACL verbreden door een filter
+mee te geven, en ziet het gelukkige pad er in beide gevallen hetzelfde uit. Houd het token in de
+`Authorization`-header en niet in de request body, zodat niets dat payloads logt hem kan opvangen,
+inference tables inbegrepen.
 
 ## On-behalf-of: welke identiteit Unity Catalog bereikt
 
-Dat alles gaat ervan uit dat de agent weet wie het vraagt. On-behalf-of draagt de identiteit van de
-aanroeper naar Unity Catalog in plaats van die van de deployer. Databricks Apps krijgt het token als
-header binnen en bereikt de breedste scope inclusief Volumes; Model Serving houdt het in de runtime
-en bereikt alles behalve Volumes. Teams levert helemaal geen Databricks-token — de Bot Framework
-geeft een Entra-token terug, dat de bot inwisselt op `/oidc/v1/token` (RFC 8693).
+Dat alles gaat ervan uit dat de agent weet wie het vraagt. De agent draait ergens — een serving
+endpoint, een app, een container — en dat ding heeft een eigen identiteit. On-behalf-of draagt de
+identiteit van de aanroeper naar Unity Catalog in plaats van die van de deployer.
+
+Twee hosts kunnen de keten draaien, en één verschil bepaalt welke:
+
+| | Databricks Apps | Model Serving |
+| --- | --- | --- |
+| Token komt binnen als | `x-forwarded-access-token`-header | in handen van de serving runtime |
+| Code haalt het op via | de header lezen | `ModelServingUserCredentials()` |
+| Bereikt | de breedste scope, inclusief UC Volumes | index, warehouses, tabellen, Genie — **niet** Volumes |
+
+Zodra de keten een bestand aanraakt, moet Apps de host zijn. Schrijf de keten zo dat hij niet weet
+op welke host hij draait, en dan blijft dat een configuratiewijziging.
+
+Vóór beide hosts zit wat de gebruiker opent, en geen daarvan is Databricks. Teams levert helemaal
+geen Databricks-token: de Bot Framework OAuth-prompt geeft een **Entra**-token terug, dat Databricks
+op workspace-API's weigert, dus wisselt de bot het in op `/oidc/v1/token` (RFC 8693) en roept het
+endpoint aan met het resultaat. Die exchange vereist een federatiebeleid op accountniveau dat de
+issuer en audience vertrouwt, plus vier Entra-instellingen: `preferred_username` als optionele
+access-token-claim, `requestedAccessTokenVersion` 2, een `access_as_user`-scope, en de Bot
+Framework-redirect-URI.
 
 > [!WARNING]
 > Elke voorwaarde hier faalt zonder foutmelding: onder `mlflow` 2.22.1 staat OBO standaard uit, en
@@ -117,7 +188,14 @@ We hebben het gemeten: dezelfde gebruiker, dezelfde vraag, dezelfde modelversie,
 groepsmapping als enige variabele. Gemapt op de echte groep van de aanroeper gaf retrieval rijen en
 een onderbouwd antwoord terug. Gemapt op een groep waar niemand in zit: nul rijen en een uitgelegde
 weigering, en het model werd nooit aangeroepen. `obo_active` gaf in beide runs `True`, wat het
-rechtenfilter isoleert van het identiteitsloodwerk.
+rechtenfilter isoleert van het identiteitsloodwerk — zonder die vlag kan een nul "terecht geweigerd"
+of "identiteit kapot" betekenen, en is er geen manier om te zien welke van de twee.
+
+De run mét rechten leverde ook iets op waar we niet op testten. Gevraagd wat het corpus over een
+bepaalde ontwerpvraag besluit, antwoordde de agent dat de documenten dat niet besluiten en noemde de
+vraag onbeslist, in plaats van er een te verzinnen. Dat is alleen te controleren tegen een echt
+corpus met echte gaten erin, want synthetische testdata beantwoordt elke vraag die je bedacht toen
+je hem schreef.
 
 ## Genie als tweede retrieval-pad
 
@@ -134,15 +212,30 @@ een passage krijgt is "een van jouw groepen liet hem toe". Op de datatak is het 
 reden is "Unity Catalog heeft jou gecontroleerd", met de gegenereerde SQL en een statement-id als
 bewijs.
 
+We hebben getest of de identiteit van de aanroeper standhoudt over de hops naar Genie, en dat doet
+hij op elk pad dat we konden bouwen. Query history schrijft het statement toe aan de mens op het
+interactieve pad, via de agent onder OBO, en vanuit Teams — dat een derde hop toevoegt via Entra en
+de token-exchange. In elk geval noemt `executed_as_user_name` de persoon, en niet de service
+principal van het endpoint.
+
 > [!WARNING]
 > Op een niet-interactief pad ís de service principal je volledige toegangscontrole: iedere mens die
 > via die integratie belt, ziet de vereniging van waar hij recht op heeft. Een review van dit pad
 > moet dus de grants van die service principal nagaan.
 
+Er is een configuratieroute naar hetzelfde punt. Databricks documenteert dat een service principal
+toegang geven tot een Genie-space ook vereist dat je de onderliggende tabellen en warehouse
+verleent. Volg die richtlijn voor een agent en het endpoint houdt een staande grant op de data, dus
+ziet iedere aanroeper de vereniging van wat het endpoint mag lezen. Onder user authorization heb je
+die grants niet nodig; voeg ze niet toe.
+
 ## Aanbevelingen
 
 Weet aan welke kant van de grens je zit. Een beheerde tabel wordt door het platform gehandhaafd en
 een vectorindex door jou, en die verdienen een verschillende mate van vertrouwen.
+
+Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
+kolommen die je mee de index in kunt nemen:
 
 ![Keuze van het handhavingspad](../../diagrams/rendered/decision-tree.png)
 
@@ -159,8 +252,7 @@ agent zich bij elke stap gedraagt. En bouw grondige validaties in je testcyclus.
 
 De [lange versie](../row-level-security.nl.md) bevat de metingen, de tabel met token-hops voor OBO,
 de Unity Catalog-ontwerpvragen die we hebben uitgezocht, en de platformfeatures die nog in preview
-zijn. De
-map [`examples/`](../../examples/) bevat uitvoerbare demonstraties van elke fout hierboven.
+zijn. De map [`examples/`](../../examples/) bevat uitvoerbare demonstraties van elke fout hierboven.
 
 ## Benieuwd hoe andere teams toegangscontrole op AI-toepassingen aanpakken?
 
