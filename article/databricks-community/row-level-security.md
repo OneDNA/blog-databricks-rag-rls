@@ -76,7 +76,7 @@ are then closed until somebody classifies them, rather than open until somebody 
 Point a RAG pipeline at those governed tables and the picture changes. ABAC governs *tables*. Tag a
 table, embed its contents, and the index that results inherits the grants but not the policy.
 
-![Governance boundary: table to index](../../diagrams/rendered/governance-boundary.png)
+![Governance boundary: table to index](../../diagrams/rendered/governance-boundary-narrow.png)
 
 A document travels through parsing, chunking, enrichment and embedding on its way to the index, and
 the security context does not reach the index. An embedding is a list of floats. What arrives is
@@ -144,7 +144,7 @@ membership they do not have, because they are not the one answering the question
 > member, so somebody can be a transitive member of a group this call does not list, and removing
 > them from the outer group does not demote them.
 
-![ACL resolution per request](../../diagrams/rendered/acl-flow.png)
+![ACL resolution per request](../../diagrams/rendered/acl-flow-narrow.png)
 
 Four decisions in that layer shaped the rest:
 
@@ -265,7 +265,7 @@ your access control.
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:
 
-![Enforcement path selection](../../diagrams/rendered/decision-tree.png)
+![Enforcement path selection](../../diagrams/rendered/decision-tree-narrow.png)
 
 Then test each control against a case where it has to deny. Point the filter at a value no row
 has and check it returns nothing. Revoke the grant and check the answer disappears. Set the

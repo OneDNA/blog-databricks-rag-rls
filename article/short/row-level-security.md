@@ -25,7 +25,7 @@ runs on a schedule and writes the index. Documents arrive from SharePoint, and a
 chunks, enriches and embeds them, writing one governed Unity Catalog artefact per stage. **Serve**
 is where agents and indexes are deployed and called — a live request path that only reads.
 
-![AI RAG agent and index development](../../diagrams/rendered/build-and-serve.png)
+![AI RAG agent and index development](../../diagrams/rendered/build-and-serve-narrow.png)
 
 We want to enforce permissions at query time, inside the agent, rather than baking them into what
 gets indexed. This means you do not need separate indexes for different audiences. The trade is that
@@ -72,7 +72,7 @@ An AI Search index is a Unity Catalog object with grants, so you can allow or de
 has no row filters and no column masks. Filtering an index is a parameter you pass from application
 code.
 
-![Governance boundary: table to index](../../diagrams/rendered/governance-boundary.png)
+![Governance boundary: table to index](../../diagrams/rendered/governance-boundary-narrow.png)
 
 A document travels through parsing, chunking and embedding on its way to the index, and the security
 context does not reach the index. An embedding is a list of floats. What arrives is what you
@@ -102,7 +102,7 @@ chunk body does.
 The ACL resolves per request from the caller's own token, with groups from SCIM using their
 credentials. Perhaps forty lines.
 
-![ACL resolution per request](../../diagrams/rendered/acl-flow.png)
+![ACL resolution per request](../../diagrams/rendered/acl-flow-narrow.png)
 
 The groups come from one call, with the caller's own token in the header:
 
@@ -207,7 +207,7 @@ and no number of passages adds up to a total. So the agent has a second retrieva
 questions go to similarity search, counts and totals go to a Genie space generating SQL against
 governed tables. Both run on the caller's credentials.
 
-![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
+![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture-narrow.png)
 
 What differs is who enforces. On the prose branch it is our declared grants, so the reason you got
 a passage is "one of your groups allowed it". On the data branch it is Unity Catalog, so the reason
@@ -247,7 +247,7 @@ of your access control, whatever row-level security is switched on.
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:
 
-![Enforcement path selection](../../diagrams/rendered/decision-tree.png)
+![Enforcement path selection](../../diagrams/rendered/decision-tree-narrow.png)
 
 Then test each control against a case where it has to deny. Point the filter at a value no row
 has and check it returns nothing. Revoke the grant and check the answer disappears. Set the

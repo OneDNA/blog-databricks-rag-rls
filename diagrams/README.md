@@ -1,13 +1,30 @@
 # Diagrams
 
-Three editable draw.io sources. GitHub renders `.drawio` files natively — click one and it opens in
-a viewer, no export needed.
+Five editable draw.io sources, each in two shapes. GitHub renders `.drawio` files natively — click
+one and it opens in a viewer, no export needed.
 
 | File | What it shows |
 | --- | --- |
 | [`build-and-serve.drawio`](build-and-serve.drawio) | The two halves of the platform: what build writes and what serve reads. Start here. |
+| [`governance-boundary.drawio`](governance-boundary.drawio) | Where Unity Catalog stops governing, and what the index does not inherit. |
+| [`acl-flow.drawio`](acl-flow.drawio) | How the ACL resolves on one request, and where each branch ends. |
 | [`architecture.drawio`](architecture.drawio) | The whole system on one page: identity, build, serve. |
 | [`decision-tree.drawio`](decision-tree.drawio) | Which enforcement path to use, and the host constraint that follows. |
+
+## Wide and narrow
+
+Each diagram exists twice, because one shape cannot do both jobs.
+
+The **wide** version is built for a slide or a full-width screen. Dropped into an article column it
+scales to roughly 40%, and its 10px detail text lands near 4px — legible in the source, useless on
+the page.
+
+The **narrow** version (`*-narrow.drawio`) is 560px with 17px titles and 15px detail, laid out as a
+single column of full-width boxes: lanes stacked rather than side by side. The smallest text renders
+at 12–18px at any plausible column width. The articles reference these; the wide ones are for
+presenting.
+
+Both come from the same `build.py`, so a change to a colour token or a label reaches both.
 
 ## Two colour rules, and they never disagree
 

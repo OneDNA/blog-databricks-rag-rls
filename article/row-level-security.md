@@ -42,7 +42,7 @@ The second is the **serve** path. It is a live request path and it reads the ind
 time. A question arrives from Teams or a web UI, the deployed agent resolves who is asking, narrows
 retrieval to what that person may see, fetches from the index, and answers.
 
-![AI RAG agent and index development](../diagrams/rendered/build-and-serve.png)
+![AI RAG agent and index development](../diagrams/rendered/build-and-serve-narrow.png)
 
 We want to enforce permissions at query time, inside the agent, rather than baking them into what
 gets indexed. This means you do not need separate indexes for different audiences: one deployed
@@ -125,7 +125,7 @@ can read the chunk text. The ACL has to apply before any column comes back, not 
 chunk body does. A filter that protects the text and leaks the author list has not protected
 anything.
 
-![Governance boundary: table to index](../diagrams/rendered/governance-boundary.png)
+![Governance boundary: table to index](../diagrams/rendered/governance-boundary-narrow.png)
 
 ## Filters on AI Search
 
@@ -220,7 +220,7 @@ Four decisions in that layer shaped the rest:
   has to encode a tuple, and a declared table is the mechanism that scales. Then an unmapped
   group grants nothing, and adding a source system is a reviewable change to a config value.
 
-![ACL resolution per request](../diagrams/rendered/acl-flow.png)
+![ACL resolution per request](../diagrams/rendered/acl-flow-narrow.png)
 
 > [!WARNING]
 > Each of those four has an alternative that grants access instead of refusing it.
@@ -468,7 +468,7 @@ principal.
 Both branches, and the identity work in front of them, on one page — read it by border colour
 before you read it by arrow:
 
-![Row-level security in a Databricks RAG pipeline](../diagrams/rendered/architecture.png)
+![Row-level security in a Databricks RAG pipeline](../diagrams/rendered/architecture-narrow.png)
 
 A service principal calling the same space over the API gets its own identity evaluated, honestly,
 as itself. No permissions are laundered. Under user authorisation the caller's own grants apply and
@@ -549,7 +549,7 @@ of your access control, whatever row-level security is switched on.
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:
 
-![Enforcement path selection](../diagrams/rendered/decision-tree.png)
+![Enforcement path selection](../diagrams/rendered/decision-tree-narrow.png)
 
 Then test each control against a case where it has to deny. Point the filter at a value no row
 has and check it returns nothing. Revoke the grant and check the answer disappears. Set the

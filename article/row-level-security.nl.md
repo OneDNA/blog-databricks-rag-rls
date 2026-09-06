@@ -44,7 +44,7 @@ Het tweede is het **serve**-pad. Dat is een live requestpad en het leest de inde
 inferentie. Een vraag komt binnen vanuit Teams of een web-UI, de uitgerolde agent stelt vast wie het
 vraagt, beperkt de retrieval tot wat die persoon mag zien, haalt op uit de index en antwoordt.
 
-![AI RAG-agent en indexontwikkeling](../diagrams/rendered/build-and-serve.png)
+![AI RAG-agent en indexontwikkeling](../diagrams/rendered/build-and-serve-narrow.png)
 
 We willen rechten op querymoment afdwingen, binnen in de agent, en ze niet inbakken in wat er
 geïndexeerd wordt. Dat betekent dat je geen aparte indexen nodig hebt voor verschillende
@@ -129,7 +129,7 @@ ze de chunktekst nu mogen lezen of niet. De ACL moet toeslaan vóórdat welke ko
 terugkomt, niet alleen vóór de chunktekst. Een filter dat de tekst beschermt en de auteurslijst
 lekt, heeft niets beschermd.
 
-![Governance-grens: tabel naar index](../diagrams/rendered/governance-boundary.png)
+![Governance-grens: tabel naar index](../diagrams/rendered/governance-boundary-narrow.png)
 
 ## Filters op AI Search
 
@@ -228,7 +228,7 @@ Vier beslissingen in die laag bepaalden de rest:
   meeschaalt. Dan verleent een niet-gemapte groep niets, en is een bronsysteem toevoegen een
   reviewbare wijziging in een configuratiewaarde.
 
-![ACL-resolutie per request](../diagrams/rendered/acl-flow.png)
+![ACL-resolutie per request](../diagrams/rendered/acl-flow-narrow.png)
 
 > [!WARNING]
 > Van elk van die vier bestaat een alternatief dat toegang geeft in plaats van weigert.
@@ -487,7 +487,7 @@ principal van het serving endpoint.
 Beide takken, en het identiteitswerk ervoor, op één pagina — lees hem eerst op randkleur, daarna
 pas op pijlen:
 
-![Row-level security in een Databricks RAG-pipeline](../diagrams/rendered/architecture.png)
+![Row-level security in een Databricks RAG-pipeline](../diagrams/rendered/architecture-narrow.png)
 
 Een service principal die dezelfde space via de API aanroept, krijgt zijn eigen identiteit
 geëvalueerd, eerlijk, als zichzelf. Er worden geen rechten witgewassen. Onder user authorization
@@ -574,7 +574,7 @@ volledige toegangscontrole, wat er ook aan row-level security aanstaat.
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
 kolommen die je mee de index in kunt nemen:
 
-![Keuze van het handhavingspad](../diagrams/rendered/decision-tree.png)
+![Keuze van het handhavingspad](../diagrams/rendered/decision-tree-narrow.png)
 
 Test daarna elke control tegen een geval waarin hij moet weigeren. Richt het filter op een waarde
 die geen enkele rij heeft en controleer of het niets oplevert. Trek de grant in en controleer of
