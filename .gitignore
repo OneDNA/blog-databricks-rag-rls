@@ -1,6 +1,12 @@
 # Editorial process — internal, not part of the article
 .style/
 
+# Diagram authoring — kept locally, not shipped. The repo ships the rendered
+# images under diagrams/rendered/, which are what the articles embed.
+diagrams/build.py
+diagrams/*.drawio
+diagrams/chat-response.html
+
 # PDF output and its build intermediates. Regenerate with the markdown-to-pdf skill —
 # a stale PDF beside an edited article is worse than no PDF.
 .pdfbuild/

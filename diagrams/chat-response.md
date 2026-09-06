@@ -1,8 +1,8 @@
 # Two questions, two enforcement paths
 
-Companion text for [`chat-response.html`](chat-response.html). The HTML is the visual on its own —
-two chat windows and the metadata box under each reply, nothing else. Everything explaining it
-lives here.
+Companion text for [`chat-response.png`](rendered/chat-response.png). The image is the visual on
+its own — two chat windows and the metadata box under each reply, nothing else. Everything
+explaining it lives here.
 
 ## What the visual shows
 
@@ -75,5 +75,5 @@ filtering on the other — reflects what we measured; the specific numbers and d
 not.
 
 Colour tokens follow the Databricks brand system: the semantic green is `#00A972` / `#00875C`, and
-the palette has no teal, turquoise or mint. The `.drawio` diagrams in this directory use the same
-`#00A972`, set once as `GREEN` in [`build.py`](build.py).
+the palette has no teal, turquoise or mint. The diagrams in this directory use the same `#00A972`
+for the same meaning — see the [border-colour legend](README.md#two-colour-rules-and-they-never-disagree).
