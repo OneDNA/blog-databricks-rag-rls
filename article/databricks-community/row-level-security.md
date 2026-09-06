@@ -14,7 +14,7 @@ for a vector index. An AI Search index is a Unity Catalog object with grants, so
 deny querying it, but it carries no row filters and no column masks. Filtering an index is a
 parameter you pass in the query, from your own application code.
 
-That is a documented boundary, not a gap somebody forgot:
+Databricks documents this boundary:
 
 > "Row and column level permissions are not supported. However, you can implement your own
 > application level ACLs using the filter API."
@@ -228,8 +228,9 @@ only the chat model; `UserAuthPolicy` carries the rest.
 
 More generally, on any non-interactive path the service principal is the whole of your access
 control. Every human calling through that integration sees the union of what it was granted, with no
-differentiation. That is honest behaviour, not a bug — but it means the review question is what the
-service principal is granted, whatever row-level security is switched on.
+differentiation. The platform is behaving correctly and reporting the identity it was given, which
+means the review question is what the service principal is granted, whatever row-level security is
+switched on.
 
 ## What we would tell a team starting this
 
