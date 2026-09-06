@@ -199,20 +199,34 @@ or the deployer's.
 
 ## What we measured
 
-A controlled run against the deployed endpoint: same user, same question, same registered model
-version, with the group-to-entitlement mapping as the only variable. Mapped to the caller's real
-group, retrieval returned rows and a grounded answer citing the corpus. Mapped to a group nobody is
-in, zero rows and an explained denial, and the model was never called.
+Two colleagues, two projects, the same agent and the same two questions. Alice is on Water Delta;
+David is on Coastal North. Neither is an administrator and neither is locked out — David simply
+holds a grant on other data, which is the ordinary case and the one worth drawing.
 
-`obo_active` reported `True` in both runs, which isolates the entitlement filter from the identity
-plumbing. Without that flag a zero could mean "correctly denied" or "identity broken", and there
-would be no way to tell which.
+![Same question, two callers](../../diagrams/rendered/chat-response.png)
 
-We also tested whether the caller's identity holds across the hops into Genie, and it does on every
-path we could construct. Query history attributes the statement to the human on the interactive
-path, through the agent under OBO, and from Teams — which adds a third hop through Entra and the
-token exchange. In each case `executed_as_user_name` names the person, not the endpoint's service
-principal.
+Ask *how many hours did we book on Water Delta in Q2* and the question is quantitative, so it routes
+to Genie and a SQL warehouse. Alice gets 1,240 hours across eight entries. David gets an empty
+result, because Unity Catalog evaluated the row filter against his identity and the hours table
+holds no Water Delta rows he can read.
+
+Ask *what went wrong on Water Delta, and what did we learn* and the question is qualitative, so it
+routes to the AI Search index. Alice gets six chunks and an answer citing the retrospective and the
+closeout note. David gets nothing, because our code passed `{"project_group": "coastal-north"}` and
+no chunk carries it.
+
+Both of David's answers are empty, and from the outside they look identical. They are not. On the
+Genie path the platform decided, and it would have decided the same way for any caller on any
+client. On the AI Search path *our filter* decided — and had we passed no filter, or one naming a
+column the index does not carry, he would have received Water Delta chunks with no error and no
+warning.
+
+`obo_active` reads `true` in all four metadata boxes, which is what makes either zero readable.
+Without it a zero could mean "correctly filtered" or "identity broken", and the two are
+indistinguishable from the answer alone. The same holds across hops: query history attributes the
+statement to the human on the interactive path, through the agent under OBO, and from Teams, which
+adds a third hop through Entra and the token exchange. In each case `executed_as_user_name` names
+the person, not the endpoint's service principal.
 
 ## Two things that surprised us
 

@@ -402,6 +402,18 @@ elke aanroeper nu zijn eigen rechten krijgt of die van de deployer.
 
 ## Het filter meten
 
+Hoe retrieval per gebruiker er van buiten uitziet: twee collega's op verschillende projecten,
+dezelfde agent, dezelfde twee vragen. De ene vraag is kwantitatief en gaat naar Genie, waar Unity
+Catalog handhaaft. De andere is kwalitatief en gaat naar de index, waar ons eigen filter dat doet.
+
+![Dezelfde vraag, twee aanroepers](../diagrams/rendered/chat-response.png)
+
+Beide antwoorden van David zijn leeg, en van buiten zien ze er hetzelfde uit. Op het Genie-pad heeft
+het platform beslist. Op het indexpad heeft ons filter beslist — en hadden we geen filter meegegeven,
+of een filter dat een kolom noemt die de index niet draagt, dan had hij Water Delta-chunks gekregen
+zonder error en zonder waarschuwing. `obo_active` staat in alle vier de metadataboxen op `true`, en
+dat is wat beide nullen leesbaar maakt.
+
 Op basis van een code review is dit allemaal weinig waard, dus hebben we het gemeten. Een
 gecontroleerd experiment tegen het gedeployde endpoint: dezelfde gebruiker, dezelfde vraag, dezelfde
 geregistreerde modelversie, met de groep-naar-recht-mapping als enige variabele. Gemapt op de echte

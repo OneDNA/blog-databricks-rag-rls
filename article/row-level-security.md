@@ -385,7 +385,19 @@ their own permissions or the deployer's.
 
 ## Measuring the filter
 
-None of this is worth much on the strength of a code review, so we measured it. A controlled
+What per-user retrieval looks like from the outside: two colleagues on different projects, the same
+agent, the same two questions. One question is quantitative and routes to Genie, where Unity Catalog
+enforces. The other is qualitative and routes to the index, where our own filter does.
+
+![Same question, two callers](../diagrams/rendered/chat-response.png)
+
+Both of David's answers are empty, and from the outside they look identical. On the Genie path the
+platform decided. On the index path our filter decided — and had we passed no filter, or one naming
+a column the index does not carry, he would have received Water Delta chunks with no error and no
+warning. `obo_active` reads `true` in all four metadata boxes, which is what makes either zero
+readable.
+
+None of that is worth much on the strength of a code review, so we measured it. A controlled
 experiment against the deployed endpoint: same user, same question, same registered model version,
 with the group-to-entitlement mapping as the only variable. Mapped to the caller's real group,
 retrieval returned five rows and a grounded answer citing the corpus. Mapped to a group nobody

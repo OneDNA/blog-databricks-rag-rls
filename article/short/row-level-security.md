@@ -179,6 +179,14 @@ Framework redirect URI.
 > and `databricks-ai-bridge` missing from the *logged* requirements drops the agent back to its own
 > identity. So assert on the identity that produced the answer, not on whether an answer arrived.
 
+What per-user retrieval looks like from the outside: two colleagues on different projects, the same
+agent, the same two questions, one routing to Genie and one to the index.
+
+![Same question, two callers](../../diagrams/rendered/chat-response.png)
+
+Both of David's answers are empty and look identical from the outside. On the Genie path the
+platform decided; on the index path our filter did.
+
 We measured it: same user, same question, same model version, with the group mapping as the only
 variable. Mapped to the caller's real group, retrieval returned rows and a grounded answer. Mapped
 to a group nobody is in, zero rows and an explained denial, and the model was never called.

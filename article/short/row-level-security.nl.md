@@ -184,6 +184,14 @@ Framework-redirect-URI.
 > een ontbrekende `databricks-ai-bridge` in de *gelogde* requirements laat de agent terugvallen op
 > zijn eigen identiteit. Assert dus op de identiteit die het antwoord opleverde.
 
+Hoe retrieval per gebruiker er van buiten uitziet: twee collega's op verschillende projecten,
+dezelfde agent, dezelfde twee vragen, de ene naar Genie en de andere naar de index.
+
+![Dezelfde vraag, twee aanroepers](../../diagrams/rendered/chat-response.png)
+
+Beide antwoorden van David zijn leeg en zien er van buiten hetzelfde uit. Op het Genie-pad heeft het
+platform beslist; op het indexpad ons filter.
+
 We hebben het gemeten: dezelfde gebruiker, dezelfde vraag, dezelfde modelversie, met de
 groepsmapping als enige variabele. Gemapt op de echte groep van de aanroeper gaf retrieval rijen en
 een onderbouwd antwoord terug. Gemapt op een groep waar niemand in zit: nul rijen en een uitgelegde
