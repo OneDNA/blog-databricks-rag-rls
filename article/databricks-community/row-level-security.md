@@ -14,15 +14,16 @@ for a vector index. An AI Search index is a Unity Catalog object with grants, so
 deny querying it, but it carries no row filters and no column masks. Filtering an index is a
 parameter you pass in the query, from your own application code.
 
-Databricks documents this boundary:
+Databricks documents this.
 
 > "Row and column level permissions are not supported. However, you can implement your own
 > application level ACLs using the filter API."
 > — [Databricks AI Search documentation](https://docs.databricks.com/aws/en/vector-search/vector-search)
 
-This post is about what happens after you accept that sentence. We built per-user access control
-over a governed corpus at a civil engineering consultancy, reachable from Microsoft Teams, and then
-measured whether it held. What follows is the design, the code, and the parts that surprised us.
+This post is about the implementation of this, and the caveats. We built per-user access control
+over a governed corpus at a civil engineering consultancy, reachable from applications outside
+Databricks — Microsoft Teams in our case. What follows is the design, the code, and the parts that
+surprised us.
 
 The starting point was [Mastering RAG Chatbot Security: ACL and Metadata Filtering with Mosaic AI
 Vector
