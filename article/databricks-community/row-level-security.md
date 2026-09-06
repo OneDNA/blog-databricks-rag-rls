@@ -91,7 +91,7 @@ later. The Databricks SharePoint connector now exposes `_sharepoint_metadata` di
 removes that join — it needs DBR 18 LTS, and on 17.3 the read still succeeds with every metadata
 field absent.
 
-A second trap: metadata **is** content. If you index `created_by_email` or `web_url` as a
+A second caveat: metadata **is** content. If you index `created_by_email` or `web_url` as a
 retrievable column, those values are visible to anyone who can query the index, whether or not they
 can read the chunk text. The ACL has to apply before any column comes back, not just before the
 chunk body does.
