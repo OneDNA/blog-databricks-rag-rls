@@ -26,7 +26,7 @@ Unity Catalog has four mechanisms for access on a governed table, and it helps t
 | Mechanism | The question it answers |
 | --- | --- |
 | Object privileges | may you touch this table at all? |
-| ABAC policy | which rule applies, by tag, across the whole catalog? |
+| ABAC policy | which rule applies, by tag, across the whole catalog or schema? |
 | Row filter | which rows come back for you? |
 | Column mask | which values in them are readable by you? |
 
