@@ -208,12 +208,12 @@ has and check it returns nothing. Revoke the grant and check the answer disappea
 group to one nobody is in and check the row count goes to zero. A control you have only seen succeed
 is a control you have not tested.
 
-One option we have not run in production is worth naming: serving the vectors from pgvector on
-Lakebase instead of AI Search. The ACL then goes back to being a row-level security policy the
-database evaluates, which puts enforcement on the platform side of the boundary this post has been
-drawing. It does not come free of the same class of mistake — our `sensitivity` filter once named a
-column no stage produced, and on pgvector that is a hard "column does not exist" rather than a
-silent pass. Equally broken, but you find out.
+One alternative mechanism is worth naming: serving the vectors from pgvector on Lakebase instead of
+AI Search. The ACL then goes back to being a row-level security policy the database evaluates, which
+puts enforcement on the platform side of the boundary this post has been drawing. It does not come
+free of the same class of mistake — our `sensitivity` filter once named a column no stage produced,
+and on pgvector that is a hard "column does not exist" rather than a silent pass. Equally broken,
+but you find out.
 
 ---
 

@@ -556,8 +556,7 @@ tegenovergestelde garantie. Vertrouw op Unity Catalog-grants en nooit op de gecu
 ## Platformfeatures in preview
 
 Twee Unity Catalog-previews mikken op het service-principalprobleem en op het schrijven van één
-policy per groep. Beide zijn Beta, beide moeten door een account-admin worden aangezet, en we hebben
-geen van beide in productie gedraaid.
+policy per groep. Beide zijn Beta en beide moeten door een account-admin worden aangezet.
 
 Identity attributes laten een policy de attributen van de aanroeper rechtstreeks lezen in plaats van
 via groepslidmaatschap. Account-SCIM provisioneert `title`, `department` en `costCenter` vanuit je
