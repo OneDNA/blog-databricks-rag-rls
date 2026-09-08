@@ -96,6 +96,11 @@ and add filters to the query being sent to the index.
 
 ![Governance boundary: table to index](../../diagrams/rendered/governance-boundary.png)
 
+That boundary sits inside a larger system. Identity, build and serve on one page, with border
+colour marking who enforces at each step:
+
+![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
+
 A document travels through parsing, chunking, enrichment and embedding on its way to the index, and
 the security context does not reach the index. What arrives is what you deliberately wrote into
 metadata columns alongside it, which means your ACL can never be more expressive than the columns
@@ -244,18 +249,14 @@ way for any caller on any client. On the AI Search path *our filter* decided —
 filter at all, he would have received Water Delta chunks with no error and no warning.
 
 `obo_active` reads `true` in all four metadata boxes. Without it a zero could mean "correctly
-filtered" or "identity broken", and the two are
-indistinguishable from the answer alone. The same holds across hops: query history attributes the
+filtered" or "identity broken", and the two are indistinguishable from the answer alone. The same
+holds across hops: query history attributes the
 statement to the human on the interactive path, through the agent under OBO, and from an external
 front end, which adds a third hop through Entra and the token exchange. In each case
 `executed_as_user_name` names the person, not the endpoint's service principal.
 
-The diagram below puts both retrieval branches, and the identity work in front of them, on one
-page. Border colour marks who enforces.
-
-![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
-
 ## Two things that surprised us
+
 **Which tables you add to a Genie Agent (formerly a Genie space) is not a security control.** We
 asked four times, across two identities, for a table we had deliberately not added, and Genie
 refused every time and generated no SQL. That looks like enforcement, but it is the model declining
@@ -270,8 +271,8 @@ caller sees the union of what the endpoint may read. Under user authorisation yo
 grants. `SystemAuthPolicy` should declare only the chat model; `UserAuthPolicy` handles the rest.
 
 More generally, on any non-interactive path every caller retrieves what the service principal may
-read. Every human calling
-through that integration sees the union of what it was granted, with no differentiation. The
+read. Every human calling through that integration sees the union of what it was granted, with no
+differentiation. The
 platform is behaving correctly and reporting the identity it was given, so the review question asks
 what the service principal is granted, whatever row-level security is switched on.
 

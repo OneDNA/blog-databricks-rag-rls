@@ -52,6 +52,7 @@ the access decision now happens in code you wrote on the serve side, against met
 chose on the build side.
 
 ## Row-level security on tables
+
 On regular tables, we can implement row-level security easily.
 Take the project data at a firm like the one above: hours, budgets, planning, all in tables, and
 each project team allowed to see only its own. Unity Catalog handles that case well. You attach a
