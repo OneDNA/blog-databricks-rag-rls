@@ -4,8 +4,8 @@
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
-        <mxCell id="t" value="&lt;b style=&quot;font-size:34px;color:#1B3139;&quot;&gt;ACL resolution per request&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:20px;color:#618794;&quot;&gt;Every branch that cannot resolve the caller ends closed.&lt;/span&gt;" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=DM Sans, DM Sans 14pt, Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DDM%2BSans%3A400%2C500%2C700;" vertex="1" parent="1">
-          <mxGeometry x="40" y="24" width="1400" height="130" as="geometry"/>
+        <mxCell id="t" value="&lt;b style=&quot;font-size:34px;color:#1B3139;&quot;&gt;ACL resolution per request&lt;/b&gt;" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=DM Sans, DM Sans 14pt, Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DDM%2BSans%3A400%2C500%2C700;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="1400" height="72" as="geometry"/>
         </mxCell>
         <mxCell id="caller" value="&lt;b&gt;Caller&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:17px;color:#618794;&quot;&gt;a human, in a front end&lt;/span&gt;" style="ellipse;html=1;whiteSpace=wrap;fillColor=#F9F7F4;strokeColor=#143D4A;strokeWidth=2;align=center;verticalAlign=middle;fontSize=20;fontColor=#1B3139;fontFamily=DM Sans, DM Sans 14pt, Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DDM%2BSans%3A400%2C500%2C700;" vertex="1" parent="1">
           <mxGeometry x="40" y="190" width="300" height="120" as="geometry"/>

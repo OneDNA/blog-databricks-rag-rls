@@ -33,6 +33,13 @@ Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot
 which tags chunks with a metadata column and passes a matching value as a query filter. That post
 passes the value in by hand. Resolving it from the caller is the part we had to add.
 
+The system has two halves, and the split matters for where access control can live. **Build** runs
+on a schedule and writes the index: documents arrive from SharePoint, and a pipeline parses,
+chunks, enriches and embeds them, writing one governed Unity Catalog artefact per stage. **Serve**
+is a live request path that only reads, and it is where the ACL has to resolve the caller.
+
+![AI RAG agent and index development](../../diagrams/rendered/build-and-serve.png)
+
 ## What Unity Catalog does for RLS on tables
 
 Unity Catalog has four mechanisms for access on a governed table, and it helps to know which
@@ -239,6 +246,11 @@ indistinguishable from the answer alone. The same holds across hops: query histo
 statement to the human on the interactive path, through the agent under OBO, and from an external
 front end, which adds a third hop through Entra and the token exchange. In each case
 `executed_as_user_name` names the person, not the endpoint's service principal.
+
+Both retrieval branches, and the identity work in front of them, on one page — read it by border
+colour before you read it by arrow:
+
+![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
 
 ## Two things that surprised us
 **The curated table list is not a boundary, even though our own result looks like one.** Genie

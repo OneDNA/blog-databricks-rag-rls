@@ -4,7 +4,7 @@
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
-        <mxCell id="t" value="&lt;b style=&quot;font-size:22px;color:#1B3139;&quot;&gt;Governance boundary&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:15px;color:#618794;&quot;&gt;A governed table has its filters.&lt;br&gt;The index built from it does not.&lt;/span&gt;" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=DM Sans, DM Sans 14pt, Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DDM%2BSans%3A400%2C500%2C700;" vertex="1" parent="1">
+        <mxCell id="t" value="&lt;b style=&quot;font-size:22px;color:#1B3139;&quot;&gt;Governance boundary&lt;/b&gt;" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=DM Sans, DM Sans 14pt, Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DDM%2BSans%3A400%2C500%2C700;" vertex="1" parent="1">
           <mxGeometry x="30" y="16" width="760" height="96" as="geometry"/>
         </mxCell>
         <mxCell id="gov" value="UNITY CATALOG GOVERNS THIS" style="swimlane;html=1;whiteSpace=wrap;startSize=46;horizontal=1;fillColor=#00A972;swimlaneFillColor=#FFFFFF;strokeColor=#00A972;strokeWidth=2;fontColor=#FFFFFF;fontSize=22;fontStyle=1;align=left;spacingLeft=14;verticalAlign=middle;container=1;collapsible=0;fontFamily=DM Sans, DM Sans 14pt, Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DDM%2BSans%3A400%2C500%2C700;" vertex="1" parent="1">

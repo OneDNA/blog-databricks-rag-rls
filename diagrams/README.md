@@ -69,11 +69,15 @@ argument the article makes, rendered as a visual convention:
 | --- | --- |
 | **Green** `#00A972` | **Unity Catalog enforces.** Per caller, platform-side, gives notice when it goes wrong. |
 | **Lava** `#FF5F46` | **Your code enforces.** Only as good as you wrote it. |
-| **Deep lava** `#FF3621` | **Nothing enforces.** The security plane does not reach here. |
+| **Navy** `#1B3139` | **Nothing enforces.** The security plane does not reach here. |
 | **Oat** `#D9D7CE` | Outside Databricks entirely. |
 
+"Nothing enforces" used to be deep lava `#FF3621`, one shade from the lava beside it — on screen
+the two read as a single colour, so the legend distinguished nothing. Navy separates cleanly and is
+already in the brand set.
+
 Read the architecture diagram by border colour before you read it by arrow. Every silent failure
-described in the article sits on a lava or deep-lava border — that is not decoration, it is the
+described in the article sits on a border the legend calls out — that is not decoration, it is the
 whole point.
 
 ## Icons and typography

@@ -56,7 +56,7 @@ FONT = (
 W_LANE = 22             # lane headers
 W_TITLE = 20            # box titles
 W_DETAIL = 17           # detail lines
-W_NOTE = 16             # note shapes
+W_NOTE = 19             # note shapes -- beige panels carry real content, not captions
 W_STORE = 18            # cylinder labels
 W_FOOT = 20             # the beige takeaway strip -- it carries the summary, so it
                         # should not be the smallest type on the page
@@ -97,7 +97,7 @@ def html(title: str, *lines: str, tcol: str = NAVY_DEEP, tsize: int = W_TITLE,
 NARROW_W = 820
 N_TITLE = 17            # box titles
 N_DETAIL = 15           # detail lines
-N_NOTE = 15             # note shapes
+N_NOTE = 17             # note shapes -- beige panels carry real content, not captions
 N_FOOT = 17             # the beige takeaway strip, a step up from the notes
 
 
@@ -134,11 +134,9 @@ def n_decision() -> str:
     )
 
 
-def n_title(txt: str, sub: str) -> str:
-    return esc(
-        f'<b style="font-size:22px;color:{NAVY_DEEP};">{txt}</b>'
-        f'<br><span style="font-size:15px;color:{NAVY_SOFT};">{sub}</span>'
-    )
+def n_title(txt: str, sub: str = "") -> str:
+    """Title only; see title()."""
+    return esc(f'<b style="font-size:22px;color:{NAVY_DEEP};">{txt}</b>')
 
 
 def n_html(title: str, *lines: str, tcol: str = NAVY_DEEP) -> str:
@@ -254,11 +252,10 @@ def edge(color: str = NAVY, width: int = 2, dashed: bool = False, arrow: str = "
     )
 
 
-def title(txt: str, sub: str) -> str:
-    return esc(
-        f'<b style="font-size:{W_PAGE_TITLE}px;color:{NAVY_DEEP};">{txt}</b>'
-        f'<br><span style="font-size:{W_PAGE_SUB}px;color:{NAVY_SOFT};">{sub}</span>'
-    )
+def title(txt: str, sub: str = "") -> str:
+    """Just the title. The subtitle used to sit under it, but the articles
+    introduce each diagram in the sentence above it, so it only repeated them."""
+    return esc(f'<b style="font-size:{W_PAGE_TITLE}px;color:{NAVY_DEEP};">{txt}</b>')
 
 
 def check_layout(cells_xml: str, badges: dict | None = None) -> None:
@@ -568,31 +565,31 @@ class Doc:
 # Diagram 1 — reference architecture
 # ═════════════════════════════════════════════════════════════════════════════════
 def architecture():
-    d = Doc("rls-architecture", "RLS reference architecture", 1900, 1740)
+    d = Doc("rls-architecture", "RLS reference architecture", 1900, 1770)
 
     d.add("title", title(
         "Row-level security in a Databricks RAG pipeline",
         "Border colour indicates which layer enforces access control."),
         f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
-        f"verticalAlign=middle;{FONT}", 40, 20, 1180, 130)
+        f"verticalAlign=middle;{FONT}", 40, 16, 1180, 72)
 
     # Legend
     d.add("lg", esc(f'<b style="color:{NAVY_DEEP};">Who enforces</b>'),
           f"rounded=0;html=1;fillColor={WHITE};strokeColor={OAT_LINE};strokeWidth=2;"
           f"verticalAlign=top;align=left;spacingLeft=10;spacingTop=8;fontSize={W_NOTE};"
-          f"container=1;collapsible=0;{FONT}", 1240, 20, 620, 250)
+          f"container=1;collapsible=0;{FONT}", 40, 96, 1000, 268)
     for i, (lbl, col) in enumerate([
         ("Unity Catalog enforces, and gives notice when it goes wrong", GREEN),
         ("Your code enforces, however you wrote it", LAVA),
-        ("Nothing enforces here at all", LAVA_DEEP),
+        ("Nothing enforces here at all", NAVY_DEEP),
         ("Outside Databricks", OAT_LINE),
     ]):
         d.add(f"lgr{i}", esc(f'<span style="color:{NAVY_DEEP};">{lbl}</span>'),
               f"rounded=0;html=1;fillColor={WHITE};strokeColor={col};strokeWidth=3;"
-              f"align=left;spacingLeft=8;fontSize={W_NOTE};{FONT}", 12, 42 + i * 48, 586, 44, "lg")
+              f"align=left;spacingLeft=10;fontSize={W_NOTE};{FONT}", 12, 44 + i * 54, 976, 50, "lg")
 
     # ── Lane 1: identity ─────────────────────────────────────────────────────────
-    d.add("idlane", esc("IDENTITY  ·  which caller reaches Unity Catalog"), zone(LAVA, WHITE, 56), 40, 300, 1820, 290)
+    d.add("idlane", esc("IDENTITY  ·  which caller reaches Unity Catalog"), zone(LAVA, WHITE, 56), 40, 400, 1820, 290)
 
     d.add("usr", html("User", "asks a question"), node(OAT_LINE), 20, 92, 200, 128, "idlane")
     d.badge("usrico", "ms-person", "usr", size=30)
@@ -614,12 +611,6 @@ def architecture():
           node(LAVA), 900, 178, 390, 100, "idlane")
     d.badge("msrvico", "model-serving", "msrv", size=30)
 
-    d.add("warn1", esc(
-        f'<b style="color:{LAVA_DEEP};">Silent</b><br>'
-        f'<span style="font-size:{W_DETAIL}px;">Below <b>mlflow 2.22.1</b> OBO is off by default and the '
-        f'agent answers as the <b>endpoint</b>. No error, no warning, no log line.</span>'),
-        note(LAVA_DEEP, WHITE), 1320, 66, 470, 150, "idlane")
-
     for cid, s, t in [("e1", "usr", "teams"), ("e2", "teams", "exch")]:
         d.link(cid, s, t, edge(), ports="exitX=1;exitY=0.5;entryX=0;entryY=0.5;")
     d.link("e3", "exch", "apps", edge(), "user token",
@@ -629,7 +620,7 @@ def architecture():
 
     # ── Lane 2: indexing ─────────────────────────────────────────────────────────
     d.add("pipe", esc("BUILD  ·  the pipeline, and where platform enforcement stops"),
-          zone(LAVA, WHITE, 56), 40, 660, 1820, 330)
+          zone(LAVA, WHITE, 56), 40, 720, 1820, 330)
 
     # Widths grew with the type: these hold two short lines each, so the extra room
     # goes sideways rather than into height, which keeps the lane shallow.
@@ -680,7 +671,7 @@ def architecture():
 
     # ── Lane 3: query time ───────────────────────────────────────────────────────
     d.add("q", esc("SERVE  ·  two retrieval paths, two different enforcers"),
-          zone(LAVA, WHITE, 56), 40, 1030, 1820, 560)
+          zone(LAVA, WHITE, 56), 40, 1080, 1820, 560)
 
     d.add("agent", html("RAG agent", "runs on the", "<b>caller's</b> client"),
           node(LAVA) + "spacingLeft=58;", 20, 96, 230, 112, "q")
@@ -749,10 +740,10 @@ def architecture():
 
     d.add("foot", esc(
         f'<span style="font-size:{W_FOOT}px;color:{NAVY_DEEP};">Every failure marked here happens with no error, and sits on '
-        f'a lava or deep-lava border. Where Unity Catalog enforces, a mistake raises; where your '
+        f'a border this legend calls out. Where Unity Catalog enforces, a mistake raises; where your '
         f'code does, it returns rows.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
-        f"spacingLeft=20;spacingTop=16;verticalAlign=top;fontSize={W_FOOT};{FONT}", 40, 1610, 1820, 76)
+        f"spacingLeft=20;spacingTop=16;verticalAlign=top;fontSize={W_FOOT};{FONT}", 40, 1670, 1820, 76)
 
     d.write("architecture.drawio")
 
@@ -869,7 +860,7 @@ def build_and_serve():
                      "Build runs on a schedule and writes the index. Serve is a live "
                      "request path and only reads it."),
           f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
-          f"verticalAlign=middle;{FONT}", 40, 24, 1500, 130)
+          f"verticalAlign=middle;{FONT}", 40, 16, 1500, 72)
 
     # ---- BUILD ----
     d.add("build", esc("BUILD  ·  batch, scheduled"), zone(LAVA, WHITE, 56), 40, 180, 880, 860)
@@ -975,7 +966,7 @@ def governance_boundary():
     d.add("t", title("Governance boundary: table to index",
                      "A governed table has its filters. The index built from it does not."),
           f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
-          f"verticalAlign=middle;{FONT}", 40, 24, 1400, 130)
+          f"verticalAlign=middle;{FONT}", 40, 16, 1400, 72)
 
     # ── Governed: the platform side ──────────────────────────────────────────────
     d.add("gov", esc("UNITY CATALOG GOVERNS THIS"), zone(GREEN, WHITE, 52), 40, 200, 700, 535)
@@ -1060,7 +1051,7 @@ def acl_flow():
     d.add("t", title("ACL resolution per request",
                      "Every branch that cannot resolve the caller ends closed."),
           f"text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;"
-          f"verticalAlign=middle;{FONT}", 40, 24, 1400, 130)
+          f"verticalAlign=middle;{FONT}", 40, 16, 1400, 72)
 
     # ── Row 1: resolve who is asking ─────────────────────────────────────────────
     d.add("caller", esc('<b>Caller</b><br>'
