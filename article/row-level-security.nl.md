@@ -144,9 +144,8 @@ je kiest ze bij het indexeren.
 
 Daarmee zijn ze een randvoorwaarde voor de pipeline. De waarden moeten meestal uit het bronsysteem
 zelf komen, dus de build-kant moet erbij kunnen voordat de serve-kant ergens op kan filteren. Bij
-retrieval moeten ze bestaan, anders faalt je filterstap. Bij Witteveen+Bos haalden we de
-SharePoint-metadata als aparte stap over de Graph API op en joinden die later op de chunks. De
-Databricks SharePoint-connector stelt inmiddels
+Witteveen+Bos haalden we de SharePoint-metadata als aparte stap over de Graph API op en joinden die
+later op de chunks. De Databricks SharePoint-connector stelt inmiddels
 `_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt. Dat vereist DBR 18 LTS, en op
 oudere versies slaagt de read nog steeds, maar zonder metadatavelden.
 
@@ -188,7 +187,7 @@ regel.
 > nagaan door hem te bevragen met een filter op een kolom die niet bestaat, en te kijken of je rijen,
 > nul rijen of een error terugkrijgt.
 >
-> Houd de guard toch, om drie redenen, waarvan de eerste de belangrijkste is:
+> Houd de guard toch, om drie redenen:
 >
 > 1. **Dit gedrag bewoog al een keer, zonder release note.** Richting veiligheid, maar een regel
 >    waarvan de juistheid afhangt van welke kant het platform het laatst op bewoog, is geen regel,
@@ -265,7 +264,6 @@ Die laatste is niet hypothetisch. Tegen echte workspace-groepen maakte een regel
 uitlas uit elke groep waarvan de naam een bekend woord bevatte, van een beheergroep een claim op een
 bronsysteem. Een naamconventie is een prima mechanisme, maar het moet een exacte match zijn
 op namen die alleen jouw identiteitsproces kan uitgeven — nooit een substring-test.
-
 
 De array-overlap-aanpak hierachter hebben wij niet bedacht. We hebben zo'n ACL per chunk eerder
 gebouwd, in het Gen AI-framework dat we samen met het AI Nexus-team van
@@ -439,12 +437,11 @@ beslist — en hadden we helemaal geen filter meegegeven, dan had hij Water Delt
 zonder error en zonder waarschuwing. `obo_active` staat in alle vier de metadataboxen op `true`, en
 dat is wat beide nullen leesbaar maakt.
 
-Een code review vertelt je niet of dat standhoudt, dus hebben we het tegen het gedeployde endpoint
-gedraaid: dezelfde gebruiker, dezelfde vraag, dezelfde geregistreerde modelversie, met de
-groep-naar-recht-mapping als enige variabele. Gemapt op de echte
-groep van de aanroeper gaf retrieval vijf rijen en een onderbouwd antwoord met verwijzing naar het
-corpus. Gemapt op een groep waar niemand in zit, gaf het nul rijen en een uitgelegde weigering, en
-werd het model nooit aangeroepen.
+Dezelfde controle kun je tegen je eigen gedeployde endpoint draaien: dezelfde gebruiker, dezelfde
+vraag, dezelfde geregistreerde modelversie, met de groep-naar-recht-mapping als enige variabele.
+Gemapt op de echte groep van de aanroeper gaf retrieval vijf rijen en een onderbouwd antwoord met
+verwijzing naar het corpus. Gemapt op een groep waar niemand in zit, gaf het nul rijen en een
+uitgelegde weigering, en werd het model nooit aangeroepen.
 
 `obo_active` rapporteerde in beide runs `True`, en dat isoleert het rechtenfilter van de
 identiteitsplumbing: de aanroeper werd in beide gevallen correct herkend en alleen zijn recht
@@ -504,7 +501,7 @@ de datatak is het Unity Catalog zelf, en de reden is "Unity Catalog heeft jou ge
 gegenereerde SQL en een statement-id als bewijs.
 
 De identiteit van de aanroeper houdt stand over de hops naar Genie, op elk pad dat we konden
-bouwen, en in query history kun je dat nagaan. Die schrijft het statement toe aan de mens op het
+bouwen. Query history schrijft het statement toe aan de mens op het
 interactieve pad, via de agent onder OBO, en vanuit een externe front end — dat een derde hop
 toevoegt via Entra en de token-exchange. In alle gevallen noemt `executed_as_user_name` de persoon,
 niet de service principal van het serving endpoint.
@@ -520,7 +517,7 @@ gelden de grants van de aanroeper zelf en heeft het endpoint geen eigen staande 
 declareert `SystemAuthPolicy` alleen het chatmodel en regelt `UserAuthPolicy` de rest.
 
 > [!WARNING]
-> **Op een niet-interactief pad is de toegang van de SP de toegang die gebruikt wordt.** Iedere
+> **Op een niet-interactief pad haalt iedere aanroeper op wat de service principal mag lezen.** Iedere
 > mens die via die integratie belt, ziet de vereniging van waar hij recht op heeft, zonder enige
 > differentiatie. Een review van dit pad moet dus de grants van die service principal nagaan.
 
@@ -571,15 +568,13 @@ je eigen OAuth-applicatie als je een specifieke wilt governen.
 > platformkant van de governance-grens. Voor ons is dat een governance-argument en geen
 > latency-argument.
 >
-> Het is wel geen een-op-een-vervanging. AI Search is gebouwd voor serving op grote schaal en kan
-> miljarden vectoren aan; pgvector op Lakebase is niet op diezelfde workloads berekend. Zie het als
-> een optie voor corpora waar de governance-winst meer waard is dan het plafond, niet als
-> drop-in-vervanging.
+> Het is geen een-op-een-vervanging. AI Search is gebouwd voor serving op grote schaal en kan
+> miljarden vectoren aan; pgvector op Lakebase is niet op diezelfde workloads berekend.
 >
 > Diezelfde klasse fouten verdwijnt er niet mee. Ons `sensitivity`-filter noemde een kolom die geen
 > enkele stap ooit produceerde, en op pgvector is dat een harde "kolom bestaat niet". Beide
-> backends weigeren het vandaag en het filter is op beide even kapot — wat je in beide gevallen
-> krijgt, is een signaal. AI Search kwam daar door te bewegen, de veilige kant op, zonder het te
+> backends weigeren het vandaag, en het filter is op beide even kapot. AI Search kwam daar door te
+> bewegen, de veilige kant op, zonder het te
 > melden. Dat is het argument om de check zelf te bezitten, geen bewijs dat je ermee kunt stoppen.
 
 ## Aanbevelingen
@@ -587,17 +582,17 @@ je eigen OAuth-applicatie als je een specifieke wilt governen.
 **Begrijp waar toegangscontrole moet worden afgedwongen, en wie daarvan is.** Een beheerde tabel
 wordt door het platform afgedwongen; een vectorindex door wie de retrievalcode schrijft. Dat splitst
 het werk tussen de indexbouwer, die de ACL-kolommen erin moet zetten, en de agentontwikkelaar, die
-erop moet filteren — en geen van beide helften werkt alleen.
+erop moet filteren.
 
 **Schrijf de ACL-kolommen weg bij het indexeren.** Je ACL kan nooit expressiever zijn dan de
 metadata die je naast de chunks hebt weggeschreven, en er later een toevoegen betekent een rebuild.
 
 **Maak je faalmodi expliciet.** "Geen recht" en "verlopen token" zijn verschillende gebeurtenissen
-die beide nul rijen opleveren, en je kunt niet repareren wat je niet kunt onderscheiden. Geef elk
-een eigen signaal, zodat nul rijen te diagnosticeren is.
+die beide nul rijen opleveren. Geef elk een eigen signaal, zodat je aan het antwoord kunt zien met
+welke van de twee je te maken hebt.
 
-**Controleer de toegangsrechten op je achterliggende paden.** Op elk niet-interactief pad is de
-toegang van de SP de toegang die gebruikt wordt, wat er ook aan row-level security aanstaat.
+**Controleer de toegangsrechten op je achterliggende paden.** Op elk niet-interactief pad haalt
+iedere aanroeper op wat de service principal mag lezen, wat er ook aan row-level security aanstaat.
 
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
 kolommen die je mee de index in kunt nemen:

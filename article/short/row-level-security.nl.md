@@ -88,9 +88,8 @@ tokens kwijt zijn aan het opnieuw indexeren van je hele corpus.
 
 Die kolommen zijn ook een randvoorwaarde voor de build-kant. Hun waarden komen meestal uit het
 bronsysteem, dus de pipeline moet erbij kunnen voordat de serve-kant ergens op kan filteren. Bij
-retrieval moeten ze bestaan, anders faalt je filterstap. Bij Witteveen+Bos haalden we de
-SharePoint-metadata als aparte stap over de Graph API op en joinden die later op de chunks; de
-Databricks SharePoint-connector stelt inmiddels
+Witteveen+Bos haalden we de SharePoint-metadata als aparte stap over de Graph API op en joinden die
+later op de chunks; de Databricks SharePoint-connector stelt inmiddels
 `_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt. Dat vereist DBR 18 LTS, en op
 oudere versies slaagt de read nog steeds, maar zonder metadatavelden.
 
@@ -158,7 +157,7 @@ beheergroep een claim op een bronsysteem.
 Twee gewoonten kwamen uit het twee keer bouwen hiervan. Merge het rechtenfilter van de aanroeper
 óver eventuele filters die de aanroeper zelf meegeeft in plaats van eronder, en wikkel een
 meegegeven boolean in een `and`; anders kan een aanroeper zijn eigen ACL verbreden door een filter
-mee te geven, en ziet het happy path er in beide gevallen hetzelfde uit. Houd het token in de
+mee te geven, en ziet het gelukkige pad er in beide gevallen hetzelfde uit. Houd het token in de
 `Authorization`-header en niet in de request body, zodat niets dat payloads logt hem kan opvangen,
 inference tables inbegrepen.
 
@@ -230,14 +229,15 @@ reden is "Unity Catalog heeft jou gecontroleerd", met de gegenereerde SQL en een
 bewijs.
 
 De identiteit van de aanroeper houdt stand over de hops naar Genie, op elk pad dat we konden
-bouwen, en in query history kun je dat nagaan. Die schrijft het statement toe aan de mens op het
+bouwen. Query history schrijft het statement toe aan de mens op het
 interactieve pad, via de agent onder OBO, en vanuit een externe front end — dat een derde hop
 toevoegt via Entra en
 de token-exchange. In elk geval noemt `executed_as_user_name` de persoon, en niet de service
 principal van het endpoint.
 
 > [!WARNING]
-> Op een niet-interactief pad is de toegang van de SP de toegang die gebruikt wordt: iedere mens
+> Op een niet-interactief pad haalt iedere aanroeper op wat de service principal mag lezen: iedere
+> mens
 > die via die integratie belt, ziet de vereniging van waar hij recht op heeft. Een review van dit
 > pad moet dus de grants van die service principal nagaan.
 
@@ -252,17 +252,17 @@ die grants niet nodig; voeg ze niet toe.
 **Begrijp waar toegangscontrole moet worden afgedwongen, en wie daarvan is.** Een beheerde tabel
 wordt door het platform gehandhaafd; een vectorindex door wie de retrievalcode schrijft. Dat splitst
 het werk tussen de indexbouwer, die de ACL-kolommen erin moet zetten, en de agentontwikkelaar, die
-erop moet filteren — en geen van beide helften werkt alleen.
+erop moet filteren.
 
 **Schrijf de ACL-kolommen weg bij het indexeren.** Je ACL kan nooit expressiever zijn dan de
 metadata die je naast de chunks hebt weggeschreven, en er later een toevoegen betekent een rebuild.
 
 **Maak je faalmodi expliciet.** "Geen recht" en "verlopen token" zijn verschillende gebeurtenissen
-die beide nul rijen opleveren, en je kunt niet repareren wat je niet kunt onderscheiden. Geef elk
-een eigen signaal, zodat nul rijen te diagnosticeren is.
+die beide nul rijen opleveren. Geef elk een eigen signaal, zodat je aan het antwoord kunt zien met
+welke van de twee je te maken hebt.
 
-**Controleer de toegangsrechten op je achterliggende paden.** Op elk niet-interactief pad is de
-toegang van de SP de toegang die gebruikt wordt, wat er ook aan row-level security aanstaat.
+**Controleer de toegangsrechten op je achterliggende paden.** Op elk niet-interactief pad haalt
+iedere aanroeper op wat de service principal mag lezen, wat er ook aan row-level security aanstaat.
 
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
 kolommen die je mee de index in kunt nemen:

@@ -33,10 +33,17 @@ Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot
 which tags chunks with a metadata column and passes a matching value as a query filter. That post
 passes the value in by hand. Resolving it from the caller is the part we had to add.
 
-The system has two halves, and the split matters for where access control can live. **Build** runs
-on a schedule and writes the index: documents arrive from SharePoint, and a pipeline parses,
-chunks, enriches and embeds them, writing one governed Unity Catalog artefact per stage. **Serve**
-is a live request path that only reads, and it is where the ACL has to resolve the caller.
+The AI RAG system consists of two parts: a build part, where data is prepared and agents are
+developed, and a serve part, where agents and indexes are deployed and called.
+
+The first is the **build** path. It runs on a schedule and it is a batch pipeline. Documents arrive
+from SharePoint or a fileshare where their owners publish them, and the pipeline walks them through
+the medallion layers: landed raw, ingested to a table, parsed and chunked and enriched, then
+combined and embedded into an index. Each stage writes one governed Unity Catalog artefact.
+
+The second is the **serve** path. It is a live request path and it reads the index at inference
+time. A question arrives from a web UI or another external client, the deployed agent resolves who
+is asking, narrows retrieval to what that person may see, fetches from the index, and answers.
 
 ![AI RAG agent and index development](../../diagrams/rendered/build-and-serve.png)
 
@@ -95,7 +102,7 @@ metadata columns alongside it, which means your ACL can never be more expressive
 you wrote at index time. Because a schema change leads to recreating the table, you might spend a
 lot of tokens on reindexing your entire corpus. Those columns are a build-side prerequisite. Their
 values usually come from the source system, so the pipeline has to reach them before the serve side
-can filter on anything. In retrieval they need to exist, otherwise your filter step fails.
+can filter on anything.
 
 On that project we pulled SharePoint metadata over the Graph API as a separate step and joined it
 onto the chunks later. The Databricks SharePoint connector now exposes `_sharepoint_metadata`
@@ -240,15 +247,15 @@ different in mechanism. On the Genie path the platform decided, and it would hav
 way for any caller on any client. On the AI Search path *our filter* decided — and had we passed no
 filter at all, he would have received Water Delta chunks with no error and no warning.
 
-`obo_active` reads `true` in all four metadata boxes. That flag is what makes either zero readable:
-without it a zero could mean "correctly filtered" or "identity broken", and the two are
+`obo_active` reads `true` in all four metadata boxes. Without it a zero could mean "correctly
+filtered" or "identity broken", and the two are
 indistinguishable from the answer alone. The same holds across hops: query history attributes the
 statement to the human on the interactive path, through the agent under OBO, and from an external
 front end, which adds a third hop through Entra and the token exchange. In each case
 `executed_as_user_name` names the person, not the endpoint's service principal.
 
-Both retrieval branches, and the identity work in front of them, on one page — read it by border
-colour before you read it by arrow:
+The diagram below puts both retrieval branches, and the identity work in front of them, on one
+page. Border colour marks who enforces.
 
 ![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
 
@@ -265,7 +272,8 @@ warehouse. Follow that for an agent and the endpoint holds a standing grant on t
 caller sees the union of what the endpoint may read. Under user authorisation you do not need those
 grants. `SystemAuthPolicy` should declare only the chat model; `UserAuthPolicy` handles the rest.
 
-More generally, on any non-interactive path the SP's access is the access used. Every human calling
+More generally, on any non-interactive path every caller retrieves what the service principal may
+read. Every human calling
 through that integration sees the union of what it was granted, with no differentiation. The
 platform is behaving correctly and reporting the identity it was given, so the review question asks
 what the service principal is granted, whatever row-level security is switched on.
@@ -275,17 +283,17 @@ what the service principal is granted, whatever row-level security is switched o
 **Understand where access control has to be enforced, and who owns it.** A governed table is
 enforced by the platform; a vector index is enforced by whoever writes the retrieval code. That
 splits the work between the index creator, who has to put the ACL columns there, and the agent
-developer, who has to filter on them — and neither half works alone.
+developer, who has to filter on them.
 
 **Write the ACL columns at index time.** Your ACL can never be more expressive than the metadata
 you put alongside the chunks, and adding one later means a rebuild.
 
 **Make your failure modes explicit.** "No entitlement" and "expired token" are different events
-that both return zero rows, and you cannot fix what you cannot tell apart. Give each one its own
-signal so a zero row count is diagnosable.
+that both return zero rows. Give each one its own signal, so you can tell from the answer which
+one you are looking at.
 
-**Check the access rights on your backup paths.** On any non-interactive path the SP's access is
-the access used.
+**Check the access rights on your backup paths.** On any non-interactive path every caller
+retrieves what the service principal may read.
 
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:
@@ -305,7 +313,7 @@ control you have not tested.
 > Lakebase is not sized for the same workloads. And it does not escape the same class of mistake —
 > our `sensitivity` filter once named a column no stage produced, and on
 > pgvector that is a hard "column does not exist", as it now is on AI Search. The filter is equally
-> broken either way; what you get is notice.
+> broken on either one, and on both you get an error rather than silence.
 
 ---
 

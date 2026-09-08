@@ -138,11 +138,11 @@ values the caller is allowed to see. Those three columns exist because the acces
 needed them, and you pick them at index time.
 
 That makes them a pipeline prerequisite. The values usually come from the source system, so the
-build side has to reach them before the serve side can filter on anything. In retrieval they need
-to exist, otherwise your filter step fails. At Witteveen+Bos we pulled the SharePoint metadata over
-the Graph API as a separate step and joined it onto the chunks later. The Databricks SharePoint
-connector now exposes `_sharepoint_metadata` directly, which removes that join. It needs DBR 18
-LTS, and on older versions the read still succeeds with every metadata field absent.
+build side has to reach them before the serve side can filter on anything. At Witteveen+Bos we
+pulled the SharePoint metadata over the Graph API as a separate step and joined it onto the chunks
+later. The Databricks SharePoint connector now exposes `_sharepoint_metadata` directly, which
+removes that join. It needs DBR 18 LTS, and on older versions the read still succeeds with every
+metadata field absent.
 
 Against a live index, a filter naming a real column and a real value returned rows, and the same
 query with a value that matches nothing returned zero. The second query is the one that proves the
@@ -180,14 +180,14 @@ only holds on one backend, or on one month's behaviour, is not much of a rule.
 > query it with a filter naming a column that does not exist and see whether you get rows, zero rows
 > or an error.
 >
-> Keep the guard anyway, for three reasons, and the first is the important one:
+> Keep the guard anyway, for three reasons:
 >
 > 1. **This behaviour moved once already, without a release note.** It moved toward safety, but a
 >    rule whose correctness depends on which way the platform last moved is not a rule, whether
 >    the thing that moved is a second backend or the platform itself.
 > 2. **A synced-but-absent column is a different case.** The probe above tests a column that
 >    exists *nowhere*. One that exists in the source table but was never synced into the index
->    need not refuse as loudly, and that is the likelier mistake.
+>    need not refuse as loudly, and that case is the likelier one.
 > 3. **Refusing at query time is a 500 to your caller.** The guard converts the same mistake into
 >    a `PermissionError` before the request leaves, which is the difference between a refused
 >    query and a broken endpoint.
@@ -255,7 +255,6 @@ That last one is not hypothetical. Against real workspace groups, a rule that re
 out of any group whose name contained a known token turned an administration group into a claim on
 a source system. A naming convention is a fine mechanism, but it has to be an exact match
 against names only your identity process can mint — never a substring test.
-
 
 We did not invent the array-overlap approach behind this. We built a per-chunk ACL like it before,
 in the Gen AI framework we delivered with the AI Nexus team at
@@ -416,14 +415,13 @@ enforces. The other is qualitative and routes to the index, where our own filter
 Both of David's answers are empty, and while the answers look identical, they are slightly different
 in mechanism. On the Genie path the platform decided. On the index path our filter decided — and
 had we passed no filter at all, he would have received Water Delta chunks with no error and no
-warning. `obo_active` reads `true` in all four metadata boxes, and that flag is what makes either
-zero readable.
+warning. `obo_active` reads `true` in all four metadata boxes.
 
-A code review will not tell you whether that holds, so we ran it against the deployed endpoint:
-same user, same question, same registered model version, with the group-to-entitlement mapping as
-the only variable. Mapped to the caller's real group,
-retrieval returned five rows and a grounded answer citing the corpus. Mapped to a group nobody
-is in, it returned zero rows and an explained denial, and the model was never called.
+You can run the same check against your own deployed endpoint: same user, same question, same
+registered model version, with the group-to-entitlement mapping as the only variable. Mapped to the
+caller's real group, retrieval returned five rows and a grounded answer citing the corpus. Mapped
+to a group nobody is in, it returned zero rows and an explained denial, and the model was never
+called.
 
 `obo_active` reported `True` in both runs, which isolates the entitlement filter from the identity
 plumbing: the caller was correctly identified either way and only their entitlement changed.
@@ -481,8 +479,8 @@ declared grants table, so the reason you got a passage is "one of your groups al
 data branch it is Unity Catalog, so the reason is "Unity Catalog checked you", with the generated
 SQL and a statement id as evidence.
 
-The caller's identity holds across the hops into Genie, on every path we could construct, and
-query history is where you check it. It attributes the statement to the human on the interactive path,
+The caller's identity holds across the hops into Genie, on every path we could construct. Query
+history attributes the statement to the human on the interactive path,
 through the agent under OBO, and from an external front end — which adds a third hop through Entra
 and the token exchange. In each case `executed_as_user_name` names the person, not the serving
 endpoint's service principal.
@@ -498,7 +496,8 @@ the endpoint needs no standing grant of its own, so `SystemAuthPolicy` declares 
 and `UserAuthPolicy` handles the rest.
 
 > [!WARNING]
-> **On a non-interactive path the SP's access is the access used.** Every human calling through
+> **On a non-interactive path every caller retrieves what the service principal may read.** Every
+> human calling through
 > that integration sees the union of what it was granted, with no differentiation. So a review of
 > this path has to check the service principal's grants.
 
@@ -548,14 +547,12 @@ restricts. The other way round, every user your SCIM sync has not populated sees
 > security policy that the database evaluates, which puts enforcement back on the platform side of
 > the governance boundary. For us that is a governance argument rather than a latency one.
 >
-> It is not a like-for-like swap, though. AI Search is built for large-scale serving and will carry
-> billions of vectors; pgvector on Lakebase is not sized for the same workloads. Treat it as an
-> option for corpora where the governance win is worth more than the ceiling, not as a drop-in
-> replacement.
+> It is not a like-for-like swap. AI Search is built for large-scale serving and will carry
+> billions of vectors; pgvector on Lakebase is not sized for the same workloads.
 >
 > It does not escape the same class of mistake. Our `sensitivity` filter named a column no stage
 > ever produced, and on pgvector that is a hard "column does not exist". Both backends refuse it
-> today and the filter is equally broken on both — what you get either way is notice. AI Search
+> today, and the filter is equally broken on either one. AI Search
 > only reached that behaviour by moving, in the safe direction, without telling anyone. That is the
 > argument for owning the check, not evidence that you can stop.
 
@@ -564,17 +561,17 @@ restricts. The other way round, every user your SCIM sync has not populated sees
 **Understand where access control has to be enforced, and who owns it.** A governed table is
 enforced by the platform; a vector index is enforced by whoever writes the retrieval code. That
 splits the work between the index creator, who has to put the ACL columns there, and the agent
-developer, who has to filter on them — and neither half works alone.
+developer, who has to filter on them.
 
 **Write the ACL columns at index time.** Your ACL can never be more expressive than the metadata
 you put alongside the chunks, and adding one later means a rebuild.
 
 **Make your failure modes explicit.** "No entitlement" and "expired token" are different events
-that both return zero rows, and you cannot fix what you cannot tell apart. Give each one its own
-signal so a zero row count is diagnosable.
+that both return zero rows. Give each one its own signal, so you can tell from the answer which
+one you are looking at.
 
-**Check the access rights on your backup paths.** On any non-interactive path the SP's access is
-the access used, whatever row-level security is switched on.
+**Check the access rights on your backup paths.** On any non-interactive path every caller
+retrieves what the service principal may read, whatever row-level security is switched on.
 
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:

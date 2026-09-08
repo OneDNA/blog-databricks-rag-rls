@@ -83,11 +83,11 @@ Because a schema change leads to recreating the table, you might spend a lot of 
 your entire corpus.
 
 Those columns are also a build-side prerequisite. Their values usually come from the source system,
-so the pipeline has to reach them before the serve side can filter on anything. In retrieval they
-need to exist, otherwise your filter step fails. At Witteveen+Bos we pulled the SharePoint metadata
-over the Graph API as a separate step and joined it onto the chunks later; the Databricks SharePoint
-connector now exposes `_sharepoint_metadata` directly, which removes that join. It needs DBR 18 LTS,
-and on older versions the read still succeeds with every metadata field absent.
+so the pipeline has to reach them before the serve side can filter on anything. At Witteveen+Bos we
+pulled the SharePoint metadata over the Graph API as a separate step and joined it onto the chunks
+later; the Databricks SharePoint connector now exposes `_sharepoint_metadata` directly, which
+removes that join. It needs DBR 18 LTS, and on older versions the read still succeeds with every
+metadata field absent.
 
 The related problem is that metadata **is** content. If you index `created_by_email` or `web_url` as
 a retrievable column, those values are visible to anyone who can query the index, whether or not
@@ -219,14 +219,15 @@ What differs is who enforces. On the prose branch it is our declared grants, so 
 a passage is "one of your groups allowed it". On the data branch it is Unity Catalog, so the reason
 is "Unity Catalog checked you", with the generated SQL and a statement id as evidence.
 
-The caller's identity holds across the hops into Genie, on every path we could construct, and
-query history is where you check it. It attributes the statement to the human on the interactive path,
+The caller's identity holds across the hops into Genie, on every path we could construct. Query
+history attributes the statement to the human on the interactive path,
 through the agent under OBO, and from an external front end — which adds a third hop through Entra
 and the token exchange. In each case `executed_as_user_name` names the person, not the endpoint's
 service principal.
 
 > [!WARNING]
-> On a non-interactive path the SP's access is the access used: every human calling through that
+> On a non-interactive path every caller retrieves what the service principal may read: every human
+> calling through that
 > integration sees the union of what it was granted. So a review of this path has to check the
 > service principal's grants.
 
@@ -241,17 +242,17 @@ not add them.
 **Understand where access control has to be enforced, and who owns it.** A governed table is
 enforced by the platform; a vector index is enforced by whoever writes the retrieval code. That
 splits the work between the index creator, who has to put the ACL columns there, and the agent
-developer, who has to filter on them — and neither half works alone.
+developer, who has to filter on them.
 
 **Write the ACL columns at index time.** Your ACL can never be more expressive than the metadata
 you put alongside the chunks, and adding one later means a rebuild.
 
 **Make your failure modes explicit.** "No entitlement" and "expired token" are different events
-that both return zero rows, and you cannot fix what you cannot tell apart. Give each one its own
-signal so a zero row count is diagnosable.
+that both return zero rows. Give each one its own signal, so you can tell from the answer which
+one you are looking at.
 
-**Check the access rights on your backup paths.** On any non-interactive path the SP's access is
-the access used, whatever row-level security is switched on.
+**Check the access rights on your backup paths.** On any non-interactive path every caller
+retrieves what the service principal may read, whatever row-level security is switched on.
 
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:
