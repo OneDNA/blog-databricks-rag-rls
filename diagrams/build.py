@@ -58,6 +58,8 @@ W_TITLE = 20            # box titles
 W_DETAIL = 17           # detail lines
 W_NOTE = 16             # note shapes
 W_STORE = 18            # cylinder labels
+W_FOOT = 20             # the beige takeaway strip -- it carries the summary, so it
+                        # should not be the smallest type on the page
 W_PAGE_TITLE = 34       # the diagram title
 W_PAGE_SUB = 20         # its subtitle
 
@@ -96,6 +98,7 @@ NARROW_W = 820
 N_TITLE = 17            # box titles
 N_DETAIL = 15           # detail lines
 N_NOTE = 15             # note shapes
+N_FOOT = 17             # the beige takeaway strip, a step up from the notes
 
 
 def n_node(stroke: str, fill: str = WHITE, width: int = 2, dashed: bool = False) -> str:
@@ -745,15 +748,12 @@ def architecture():
            [(1470, 310)], "exitX=1;exitY=0.5;entryX=0;entryY=0.5;", parent="q")
 
     d.add("foot", esc(
-        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">Every failure marked here happens with no error, and sits on '
+        f'<span style="font-size:{W_FOOT}px;color:{NAVY_DEEP};">Every failure marked here happens with no error, and sits on '
         f'a lava or deep-lava border. Where Unity Catalog enforces, a mistake raises; where your '
         f'code does, it returns rows.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
-        f"spacingLeft=20;spacingTop=14;verticalAlign=top;fontSize={W_DETAIL};{FONT}", 40, 1610, 1820, 62)
+        f"spacingLeft=20;spacingTop=16;verticalAlign=top;fontSize={W_FOOT};{FONT}", 40, 1610, 1820, 76)
 
-    d.add("cred", esc(f'<span style="color:{NAVY_SOFT};">OneDNA · onedna.nl · '
-                      f'Databricks RAG row-level security</span>'),
-          f"text;html=1;align=right;verticalAlign=middle;fontSize={W_NOTE};{FONT}", 1080, 1678, 780, 44)
     d.write("architecture.drawio")
 
 
@@ -848,7 +848,7 @@ def decision_tree():
 
     d.add("note", esc(
         f'<b style="font-size:{W_TITLE}px;color:{NAVY_DEEP};">Whichever branch you land on</b><br>'
-        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">'
+        f'<span style="font-size:{W_FOOT}px;color:{NAVY_DEEP};">'
         f'<b>1.</b> Point the filter at something that must return nothing, and watch it return '
         f'nothing. A control you have only seen succeed is a control you have not tested.<br>'
         f'<b>2.</b> Make your two zeros distinguishable: "no entitlement" and "something broke" '
@@ -856,13 +856,8 @@ def decision_tree():
         f'<b>3.</b> Assert on the identity that produced the answer. An answer arriving tells '
         f'you nothing about who it was filtered for.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
-        f"spacingLeft=18;spacingTop=14;verticalAlign=top;fontSize={W_DETAIL};{FONT}", 40, 1590, 1740, 220)
-
-    d.add("cred", esc(f'<span style="color:{NAVY_SOFT};">OneDNA · onedna.nl</span>'),
-          f"text;html=1;align=right;verticalAlign=middle;fontSize={W_NOTE};{FONT}", 980, 1840, 800, 44)
+        f"spacingLeft=20;spacingTop=16;verticalAlign=top;fontSize={W_FOOT};{FONT}", 40, 1590, 1740, 150)
     d.write("decision-tree.drawio")
-
-
 
 # ═════════════════════════════════════════════════════════════════════════════════
 # Diagram 3 — build and serve, the two halves of the platform
@@ -958,18 +953,13 @@ def build_and_serve():
            [(437, 378)], "exitX=1;exitY=0.5;entryX=0;entryY=0.5;", parent="serve")
 
     d.add("foot", esc(
-        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">Enforcing the ACL at query time means no '
+        f'<span style="font-size:{W_FOOT}px;color:{NAVY_DEEP};">Enforcing the ACL at query time means no '
         f'per-audience index and no copy of the corpus outside Databricks. The trade is that the '
         f'access decision runs in code you wrote on the serve side, against columns you chose on '
         f'the build side.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
-        f"spacingLeft=20;spacingTop=14;verticalAlign=top;fontSize={W_DETAIL};{FONT}", 40, 1070, 1800, 105)
-
-    d.add("cred", esc(f'<span style="color:{NAVY_SOFT};">OneDNA · onedna.nl</span>'),
-          f"text;html=1;align=right;verticalAlign=middle;fontSize={W_NOTE};{FONT}", 1040, 1195, 800, 44)
+        f"spacingLeft=20;spacingTop=16;verticalAlign=top;fontSize={W_FOOT};{FONT}", 40, 1070, 1800, 76)
     d.write("build-and-serve.drawio")
-
-
 
 # ═════════════════════════════════════════════════════════════════════════════════
 # Diagram 4 — the governance boundary
@@ -1048,17 +1038,13 @@ def governance_boundary():
         f"verticalAlign=middle;fontSize={W_DETAIL};{FONT}", 790, 520, 320, 70)
 
     d.add("foot", esc(
-        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">Whatever access control applied to the '
+        f'<span style="font-size:{W_FOOT}px;color:{NAVY_DEEP};">Whatever access control applied to the '
         f'text is not in the vector. What arrives is what you deliberately wrote '
         f'into metadata columns alongside it — so your ACL can never be more expressive than the '
         f'columns you wrote at index time.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
-        f"spacingLeft=20;spacingTop=14;verticalAlign=top;fontSize={W_DETAIL};{FONT}", 40, 765, 1820, 105)
-
-    d.add("cred", esc(f'<span style="color:{NAVY_SOFT};">OneDNA · onedna.nl</span>'),
-          f"text;html=1;align=right;verticalAlign=middle;fontSize={W_NOTE};{FONT}", 1060, 885, 800, 40)
+        f"spacingLeft=20;spacingTop=16;verticalAlign=top;fontSize={W_FOOT};{FONT}", 40, 765, 1820, 76)
     d.write("governance-boundary.drawio")
-
 
 # ═════════════════════════════════════════════════════════════════════════════════
 # Diagram 5 — the ACL resolution flow
@@ -1167,19 +1153,13 @@ def acl_flow():
            ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
 
     d.add("foot", esc(
-        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">Empty means nothing, not everything. A '
+        f'<span style="font-size:{W_FOOT}px;color:{NAVY_DEEP};">Empty means nothing, not everything. A '
         f'malformed mapping raises rather than resolving to empty, so "no entitlement" and '
         f'"something broke" tell themselves apart. A naming convention works while one group means '
         f'one thing; a declared table is what scales to a combination of columns.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
-        f"spacingLeft=20;spacingTop=14;verticalAlign=top;fontSize={W_DETAIL};{FONT}", 1200, 790, 560, 250)
-
-    d.add("cred", esc(f'<span style="color:{NAVY_SOFT};">OneDNA · onedna.nl</span>'),
-          f"text;html=1;align=right;verticalAlign=middle;fontSize={W_NOTE};{FONT}", 960, 1090, 800, 44)
+        f"spacingLeft=20;spacingTop=16;verticalAlign=top;fontSize={W_FOOT};{FONT}", 1200, 790, 560, 210)
     d.write("acl-flow.drawio")
-
-
-
 
 # ═════════════════════════════════════════════════════════════════════════════════
 # Narrow variants. One column, full-width boxes, stacked top to bottom.
@@ -1195,14 +1175,13 @@ def _n_head(d, title, sub, h=96):
           f"verticalAlign=middle;{FONT}", X, 16, W, h)
 
 
-def _n_foot(d, y, text, h=132):
-    d.add("foot", esc(f'<span style="font-size:{N_NOTE}px;color:{NAVY_DEEP};">{text}</span>'),
+def _n_foot(d, y, text, h=112):
+    """The beige takeaway strip. Sized at N_FOOT rather than N_NOTE: it carries the
+    summary of the whole diagram, so it should not be the smallest type on it."""
+    d.add("foot", esc(f'<span style="font-size:{N_FOOT}px;color:{NAVY_DEEP};">{text}</span>'),
           f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
-          f"spacingLeft=16;spacingTop=12;verticalAlign=top;fontSize={N_NOTE};{FONT}",
+          f"spacingLeft=18;spacingTop=14;verticalAlign=top;fontSize={N_FOOT};{FONT}",
           X, y, W, h)
-    d.add("cred", esc(f'<span style="font-size:13px;color:{NAVY_SOFT};">OneDNA · onedna.nl</span>'),
-          f"text;html=1;align=right;verticalAlign=middle;fontSize=13;{FONT}",
-          X + 220, y + h + 10, 280, 26)
 
 
 def governance_boundary_narrow():
