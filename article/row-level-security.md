@@ -534,7 +534,7 @@ never on the curated list.
 ## Platform features in preview
 
 Two Unity Catalog previews aim at the service principal problem and at writing one policy per
-group. Both are Beta and both need an account admin to enable them.
+group. Both are Beta, and an account admin has to enable them.
 
 Identity attributes let a policy read the caller's attributes directly rather than going through
 group membership. Account SCIM provisions `title`, `department` and `costCenter` from your identity
