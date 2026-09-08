@@ -179,18 +179,6 @@ only holds on one backend, or on one month's behaviour, is not much of a rule.
 > index contract, which is the job the guard above does by hand. To check what your own index does,
 > query it with a filter naming a column that does not exist and see whether you get rows, zero rows
 > or an error.
->
-> Keep the guard anyway, for three reasons:
->
-> 1. **This behaviour moved once already, without a release note.** It moved toward safety, but a
->    rule whose correctness depends on which way the platform last moved is not a rule, whether
->    the thing that moved is a second backend or the platform itself.
-> 2. **A synced-but-absent column is a different case.** The probe above tests a column that
->    exists *nowhere*. One that exists in the source table but was never synced into the index
->    need not refuse as loudly, and that case is the likelier one.
-> 3. **Refusing at query time is a 500 to your caller.** The guard converts the same mistake into
->    a `PermissionError` before the request leaves, which is the difference between a refused
->    query and a broken endpoint.
 
 ## Building the ACL: four decisions
 
@@ -506,11 +494,11 @@ a Genie space also requires granting its underlying tables and warehouse. Follow
 an agent and the endpoint holds a standing grant on the data, so every caller sees the union of what
 the endpoint may read. Under user authorisation you do not need those grants; do not add them.
 
-The curated table list is not a boundary either, even though our own result looks like one. Genie
-refused four attempts to reach an off-list table and generated no SQL at all. That is prompt scoping
-— a model declining to name a table it has not been shown — and it will change with a model update
-and no release note. The vendor documents the opposite guarantee. Rely on Unity Catalog grants,
-never on the curated list.
+A Genie space's curated table list is not a security control either. We asked four times, across
+two identities, for a table deliberately left off the list, and Genie refused every time and
+generated no SQL. That looks like enforcement, but it is the model declining to name a table it was
+never shown, and a model update can change it without a release note. The Databricks documentation
+does not promise the list limits what Genie can reach. Rely on Unity Catalog grants instead.
 
 ## Platform features in preview
 
@@ -544,8 +532,8 @@ restricts. The other way round, every user your SCIM sync has not populated sees
 > [!NOTE]
 > **There is a third option, and it is available today rather than in Beta.** Serve the vectors
 > from pgvector on Lakebase instead of AI Search, and the ACL goes back to being a row-level
-> security policy that the database evaluates, which puts enforcement back on the platform side of
-> the governance boundary. For us that is a governance argument rather than a latency one.
+> security policy that the database evaluates, so Postgres applies the filter rather than your
+> retrieval code. For us that is a governance argument rather than a latency one.
 >
 > It is not a like-for-like swap. AI Search is built for large-scale serving and will carry
 > billions of vectors; pgvector on Lakebase is not sized for the same workloads.

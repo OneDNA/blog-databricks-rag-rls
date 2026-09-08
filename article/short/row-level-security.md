@@ -97,10 +97,8 @@ chunk body does.
 > [!WARNING]
 > **A filter naming a column the index does not have refuses the query** — `Columns referenced in
 > filters are not present in index`. Assert every filter's keys against the columns the index
-> actually has anyway, and raise rather than warn: this behaviour moved once without a release
-> note, and a query-time refusal is a 500 to your caller where the assertion is a clean
-> `PermissionError`. To check what your own index does, query it with a filter naming a column that
-> does not exist and see whether you get rows, zero rows or an error.
+> actually has, and raise rather than warn. To check what your own index does, query it with a
+> filter naming a column that does not exist and see whether you get rows, zero rows or an error.
 
 ## Building the ACL: four decisions
 

@@ -120,14 +120,9 @@ chunk body does.
 > sensitivty` — validating filter keys against the index contract. To check what your own index
 > does, query it with a filter naming a column that does not exist and see whether you get rows,
 > zero rows or an error.
->
-> Keep the assertion below anyway: this behaviour moved once, without a release note, and can move
-> again; a column that exists in the source but was never synced into the index is a different and
-> likelier mistake; and a refusal at query time is a 500 to your caller, where the assertion is a
-> clean `PermissionError` before the request leaves.
 
-That last one is why we assert every filter's keys against the columns the index actually has,
-before the query goes out, and raise rather than warn:
+We assert every filter's keys against the columns the index actually has, before the query goes
+out, and raise rather than warn:
 
 ```python
 def assert_enforceable(filters: dict[str, Any]) -> None:
@@ -260,11 +255,11 @@ page. Border colour marks who enforces.
 ![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
 
 ## Two things that surprised us
-**The curated table list is not a boundary, even though our own result looks like one.** Genie
-refused four attempts to reach an off-list table and generated no SQL at all. That is prompt
-scoping — a model declining to name a table it has not been shown — and it will change with a model
-update and no release note. The vendor documents the opposite guarantee, so rely on Unity Catalog
-grants and never on the curated list.
+**A Genie space's curated table list is not a security control.** We asked four times, across two
+identities, for a table deliberately left off the list, and Genie refused every time and generated
+no SQL. That looks like enforcement, but it is the model declining to name a table it was never
+shown, and a model update can change it without a release note. The Databricks documentation does
+not promise the list limits what Genie can reach. Rely on Unity Catalog grants instead.
 
 **A documented configuration path overrules on-behalf-of and takes the SP identity.** Granting a
 service principal access to a Genie space also requires granting its underlying tables and
@@ -307,8 +302,8 @@ control you have not tested.
 
 > [!NOTE]
 > **There is another way to do this.** Serve the vectors from pgvector on Lakebase instead of AI
-> Search, and the ACL goes back to being a row-level security policy the database evaluates, which
-> puts enforcement on the platform side of the governance boundary. It is not a like-for-like swap:
+> Search, and the ACL goes back to being a row-level security policy the database evaluates, so
+> Postgres applies the filter rather than your retrieval code. It is not a like-for-like swap:
 > AI Search is built for large-scale serving and will carry billions of vectors, where pgvector on
 > Lakebase is not sized for the same workloads. And it does not escape the same class of mistake —
 > our `sensitivity` filter once named a column no stage produced, and on

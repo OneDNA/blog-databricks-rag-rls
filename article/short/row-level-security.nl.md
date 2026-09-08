@@ -100,12 +100,10 @@ niet alleen vóór de chunktekst.
 
 > [!WARNING]
 > **Een filter dat een kolom noemt die de index niet heeft, weigert de query** — `Columns
-> referenced in filters are not present in index`. Toets elke filtersleutel toch aan de kolommen
-> die de index echt heeft, en gooi een error in plaats van een waarschuwing: dit gedrag is één keer
-> verschoven zonder release note, en een weigering tijdens de query is een 500 voor je aanroeper
-> waar de toets een nette `PermissionError` geeft. Wat jouw index doet, kun je nagaan door hem te
-> bevragen met een filter op een kolom die niet bestaat, en te kijken of je rijen, nul rijen of een
-> error terugkrijgt.
+> referenced in filters are not present in index`. Toets elke filtersleutel aan de kolommen die de
+> index echt heeft, en gooi een error in plaats van een waarschuwing. Wat jouw index doet, kun je
+> nagaan door hem te bevragen met een filter op een kolom die niet bestaat, en te kijken of je
+> rijen, nul rijen of een error terugkrijgt.
 
 ## De ACL bouwen: vier beslissingen
 

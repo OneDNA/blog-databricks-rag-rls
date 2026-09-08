@@ -186,18 +186,6 @@ regel.
 > het indexcontract, precies wat de guard hierboven met de hand doet. Wat jouw index doet, kun je
 > nagaan door hem te bevragen met een filter op een kolom die niet bestaat, en te kijken of je rijen,
 > nul rijen of een error terugkrijgt.
->
-> Houd de guard toch, om drie redenen:
->
-> 1. **Dit gedrag bewoog al een keer, zonder release note.** Richting veiligheid, maar een regel
->    waarvan de juistheid afhangt van welke kant het platform het laatst op bewoog, is geen regel,
->    of het bewegende nu een tweede backend is of het platform zelf.
-> 2. **Een kolom die wél bestaat maar niet gesynct is, is een ander geval.** De probe hierboven
->    test een kolom die *nergens* bestaat. Een kolom die in de brontabel staat maar nooit de index
->    in ging, hoeft niet zo hard te weigeren — en dat is de waarschijnlijkere fout.
-> 3. **Weigeren tijdens de query is een 500 voor je aanroeper.** De guard maakt van dezelfde fout
->    een `PermissionError` vóórdat het request de deur uit is: het verschil tussen een geweigerde
->    query en een kapot endpoint.
 
 ## De ACL bouwen: vier beslissingen
 
@@ -527,11 +515,12 @@ richtlijn voor een agent en het endpoint houdt een staande grant op de data, dus
 aanroeper de vereniging van wat het endpoint mag lezen. Onder user authorization heb je die grants
 niet nodig; voeg ze niet toe.
 
-De lijst met gecureerde tabellen is evenmin een grens, ook al ziet ons eigen resultaat er zo uit.
-Genie weigerde vier pogingen om een tabel buiten de lijst te bereiken en genereerde helemaal geen
-SQL. Dat is prompt-scoping — een model dat een tabel niet wil noemen die het niet heeft gezien — en
-het verandert met een modelupdate en zonder release note. De leverancier documenteert de
-tegenovergestelde garantie. Vertrouw op Unity Catalog-grants en nooit op de gecureerde lijst.
+De gecureerde tabellenlijst van een Genie-space is ook geen security-control. We vroegen vier keer,
+met twee identiteiten, om een tabel die we er expres buiten hadden gelaten, en Genie weigerde elke
+keer en genereerde geen SQL. Dat lijkt op handhaving, maar het is het model dat een tabel niet noemt
+die het nooit heeft gezien, en een modelupdate kan dat veranderen zonder release note. De
+Databricks-documentatie belooft niet dat de lijst begrenst wat Genie kan bereiken. Vertrouw in
+plaats daarvan op Unity Catalog-grants.
 
 ## Platformfeatures in preview
 
@@ -564,8 +553,8 @@ je eigen OAuth-applicatie als je een specifieke wilt governen.
 > [!NOTE]
 > **Er is een derde optie, en die is vandaag al beschikbaar in plaats van Beta.** Serveer de
 > vectoren uit pgvector op Lakebase in plaats van uit AI Search, en de ACL wordt weer een
-> row-level security-policy die de database evalueert, waarmee de handhaving terugkomt aan de
-> platformkant van de governance-grens. Voor ons is dat een governance-argument en geen
+> row-level security-policy die de database evalueert, dus past Postgres het filter toe in plaats
+> van jouw retrievalcode. Voor ons is dat een governance-argument en geen
 > latency-argument.
 >
 > Het is geen een-op-een-vervanging. AI Search is gebouwd voor serving op grote schaal en kan
