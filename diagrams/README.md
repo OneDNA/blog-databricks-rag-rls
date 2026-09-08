@@ -15,6 +15,34 @@ Alongside them, [`chat-response.png`](rendered/chat-response.png) shows the same
 for two callers on different projects — [`chat-response.md`](chat-response.md) explains what the
 exchange demonstrates.
 
+## Rebuilding them
+
+The `.drawio` files are generated, not drawn by hand, because the brand rule ("lava marks
+Databricks, oat marks everything else") and the enforcement rule ("who enforces this?") have to
+hold on every one of ~100 cells, and doing that by hand is how inconsistencies creep in.
+
+```bash
+cd diagrams
+python build.py          # regenerates all ten .drawio files
+```
+
+`build.py` asserts as it goes: `fits()` fails the build if a label needs more height than its box
+has, and `check_layout()` fails it if a connector waypoint lands inside a shape it does not
+connect. Both turn a layout bug into a build error rather than something you notice in the render.
+
+Exporting is a separate step, via the draw.io desktop CLI:
+
+```bash
+for f in *.drawio; do
+  drawio --export --format svg --output "rendered/${f%.drawio}.svg" "$f"
+  drawio --export --format png --scale 2 --output "rendered/${f%.drawio}.png" "$f"
+done
+```
+
+Type sizes live in two scales near the top of `build.py`: `W_*` for the wide diagrams and `N_*` for
+the narrow ones. Changing a size there will usually trip `fits()` on a box or two, which is the
+build telling you which ones need more room.
+
 ## Wide and narrow
 
 Each diagram exists in two shapes.
