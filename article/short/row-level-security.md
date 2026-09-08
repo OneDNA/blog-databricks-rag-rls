@@ -137,7 +137,7 @@ grants. We return nothing.
 - **An unentitled caller never reaches the call to the index.** They get an explicit denial, rather
   than an answer assembled from the model's general knowledge.
 - **Where entitlements come from is a scale decision.** A naming convention works, and it is what we
-  shipped at Witteveen+Bos. Once a caller's access is a combination of columns, a declared table is
+  shipped at Witteveen+Bos. Once a caller's access is a combination of columns, a declared grants tabled table is
   needed.
 
 Each has an alternative that grants access instead of refusing it. A permissive default serves the

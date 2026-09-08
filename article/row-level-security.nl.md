@@ -234,7 +234,7 @@ Vier beslissingen in die laag bepaalden de rest:
   Witteveen+Bos hebben opgeleverd: de groepsnaam bevat het recht, waarvoor je niets hoeft te
   configureren. Dat houdt stand zolang één groep op één ding mapt. Zodra de toegang van een
   aanroeper een combinatie van metadatakolommen is — bijvoorbeeld een bronsysteem *én* een site *én*
-  een gevoeligheid — moet de naam een tuple coderen, en is een gedeclareerde tabel nodig. Dan
+  een gevoeligheid — moet de naam een tuple coderen, en is een gedeclareerde grants-tabel nodig. Dan
   verleent een niet-gemapte groep niets, en is een bronsysteem toevoegen een
   reviewbare wijziging in een configuratiewaarde.
 

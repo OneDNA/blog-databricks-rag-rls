@@ -144,7 +144,7 @@ een fout doet, bepaalt wat een fout verleent. Wij geven niets terug.
   weigering, en geen antwoord dat uit de algemene kennis van het model is samengesteld.
 - **Waar rechten uit komen is een schaalbeslissing.** Een naamconventie werkt, en het is wat we bij
   Witteveen+Bos hebben opgeleverd. Zodra de toegang van een aanroeper een combinatie van kolommen
-  is, is een gedeclareerde tabel nodig.
+  is, is een gedeclareerde grants-tabel nodig.
 
 Van elk daarvan bestaat een alternatief dat toegang geeft in plaats van weigert. Een permissieve
 default serveert het hele corpus zodra iemand een variabele vergeet. Een kapotte mapping die naar

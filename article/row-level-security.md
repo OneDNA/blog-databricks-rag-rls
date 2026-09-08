@@ -226,7 +226,7 @@ Four decisions in that layer shaped the rest:
   we shipped at Witteveen+Bos: the group's name holds the entitlement, which needs no
   configuration at all. It holds as long as one group maps to one thing. Once a caller's access is
   a combination of metadata columns — e.g. a source system *and* a site *and* a sensitivity — the
-  name has to encode a tuple, and a declared table is needed. Then an unmapped
+  name has to encode a tuple, and a declared grants table is needed. Then an unmapped
   group grants nothing, and adding a source system is a reviewable change to a config value.
 
 ![ACL resolution per request](../diagrams/rendered/acl-flow.png)
@@ -304,7 +304,7 @@ has to run on every request, before retrieval, whether the model would have pick
 
 ### Is the entitlement mapping its own governed table?
 
-The four decisions above put entitlements in a declared mapping, and in our build that mapping is a
+The four decisions above put entitlements in a declared grants table, and in our build that table is a
 configuration value — which is why "adding a source system is a reviewable change" means a pull
 request. A Unity Catalog table is the better home for it, with one condition that decides the whole
 design.

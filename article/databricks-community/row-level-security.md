@@ -175,7 +175,7 @@ deployment where nobody configured the mapping serves nothing to everybody.
   than an answer assembled from the model's general knowledge.
 - **Where entitlements come from is a scale decision.** A naming convention works and needs no
 configuration at all. Once a caller's access is a combination of columns — e.g. a source system
-*and* a site *and* a sensitivity — the name has to encode a tuple, and a declared table is needed.
+*and* a site *and* a sensitivity — the name has to encode a tuple, and a declared grants table is needed.
 
 Each has an alternative that grants access instead of refusing it, and each of those is a one-line
 change. A 401 from SCIM is a routine event — an expired token — so what your error path returns

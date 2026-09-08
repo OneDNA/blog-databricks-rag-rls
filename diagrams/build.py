@@ -656,8 +656,8 @@ def architecture():
         note(), 20, 196, 880, 120, "pipe")
     d.add("cols", esc(
         f'<b>ACL_FILTER_COLUMNS</b><br><span style="font-size:{W_DETAIL}px;">source_system · site_id · '
-        f'sensitivity<br><br><i>Your ACL can never be more expressive than the columns you '
-        f'written at index time. Getting it wrong is a <b>rebuild</b>.</i></span>'),
+        f'sensitivity<br><br><i>Your ACL can never be more expressive than these columns. '
+        f'Adding one later is a <b>rebuild</b>.</i></span>'),
         note(LAVA, WHITE), 920, 196, 880, 120, "pipe")
 
     seq = ["s12", "s34", "s56", "s7", "s8"]
@@ -705,20 +705,18 @@ def architecture():
 
     d.add("deny", esc(
         f'<b style="color:{LAVA_DEEP};">no entitlement</b><br>'
-        f'<span style="font-size:{W_DETAIL}px;">0 rows, and the model is never called. '
-        f'A fluent answer from general knowledge is indistinguishable from a real retrieval.</span>'),
+        f'<span style="font-size:{W_DETAIL}px;">0 rows, and the model is never called.</span>'),
         note(LAVA_DEEP, WHITE), 20, 400, 560, 130, "q")
 
     d.add("drop", esc(
         f'<b style="color:{LAVA_DEEP};">Your filter, your problem</b><br>'
-        f'<span style="font-size:{W_DETAIL}px;">A filter naming a column the index does not have is '
-        f'refused at query time — a 500 to your caller unless you assert first.</span>'), note(LAVA_DEEP, WHITE), 600, 400, 590, 130, "q")
+        f'<span style="font-size:{W_DETAIL}px;">Refused at query time: a 500 to your caller, '
+        f'unless you assert first.</span>'), note(LAVA_DEEP, WHITE), 600, 400, 590, 130, "q")
 
     d.add("sp", esc(
         f'<b style="color:{LAVA_DEEP};">Non-interactive callers</b><br>'
-        f'<span style="font-size:{W_DETAIL}px;">On a service-principal path the SP is the evaluated '
-        f'identity, so every human calling through it sees the union of what the SP was granted. '
-        f'Review what the SP is granted, not the space.</span>'),
+        f'<span style="font-size:{W_DETAIL}px;">Every caller retrieves what the SP may read. '
+        f'Review its grants.</span>'),
         note(LAVA_DEEP, WHITE), 1210, 400, 590, 130, "q")
 
     d.link("q1", "agent", "route", edge(), ports="exitX=1;exitY=0.5;entryX=0;entryY=0.5;", parent="q")
@@ -775,25 +773,23 @@ def decision_tree():
     outcomes = [
         ("uc", "unity-catalog", GREEN, "Unity Catalog RLS",
          "row filters and column masks, or an ABAC policy at catalog scope",
-         "<b>The platform enforces.</b> Resolves per caller, and holds across the agent and front-end "
-         "hops.<br><br>Test it against a case it has to deny.", 40, 900, 400, 330),
+         "<b>The platform enforces</b>, per caller, across every hop."
+         "<br><br>Test it against a case it has to deny.", 40, 900, 400, 330),
         ("sp", "sql-warehouse", LAVA_DEEP, "Review the SP's grants",
          "the service principal <b>is</b> the identity",
-         "Every human calling through it sees the union of what the SP may read, with "
-         "no differentiation between them. On this path that is the whole of your "
-         "access control.", 470, 900, 400, 350),
+         "Every caller retrieves what the SP may read, with no differentiation."
+         "<br><br>Review its grants.", 470, 900, 400, 350),
         ("code", "ai-search", LAVA, "Code ACL + assert_enforceable",
          "you enforce, at query time",
-         "Resolve groups per request from the caller's own token. A naming convention works until "
-         "access is a <b>combination</b> of columns; then use a <b>declared table</b>."
-         "<br><br>Refuse on error. Empty is the default. Malformed raises."
-         "<br><br>Test the denial path: the happy path passes either way.",
+         "Resolve groups per request from the caller's own token. Once access is a "
+         "<b>combination</b> of columns, use a <b>declared grants table</b>."
+         "<br><br>Refuse on error. Empty is the default."
+         "<br><br>Test the denial path.",
          900, 900, 430, 390),
         ("pg", "lakebase", NAVY, "Consider pgvector on Lakebase",
          "move enforcement back into the database",
          "Your ACL becomes a row-level security policy again, evaluated by the engine rather "
-         "than by your retrieval code.<br><br>A governance argument rather than a latency one, "
-         "and the stronger of the two.", 1360, 900, 420, 390),
+         "than by your retrieval code.<br><br>Not sized for AI Search workloads.", 1360, 900, 420, 390),
     ]
     for cid, ico, col, head, sub, body, x, y, w, h in outcomes:
         d.add(cid, esc(
@@ -840,12 +836,9 @@ def decision_tree():
     d.add("note", esc(
         f'<b style="font-size:{W_TITLE}px;color:{NAVY_DEEP};">Whichever branch you land on</b><br>'
         f'<span style="font-size:{W_FOOT}px;color:{NAVY_DEEP};">'
-        f'<b>1.</b> Point the filter at something that must return nothing, and watch it return '
-        f'nothing. A control you have only seen succeed is a control you have not tested.<br>'
-        f'<b>2.</b> Make your two zeros distinguishable: "no entitlement" and "something broke" '
-        f'look identical from outside.<br>'
-        f'<b>3.</b> Assert on the identity that produced the answer. An answer arriving tells '
-        f'you nothing about who it was filtered for.</span>'),
+        f'<b>1.</b> Test it against a value no row has. It must return nothing.<br>'
+        f'<b>2.</b> Tell your two zeros apart: no entitlement, or something broke.<br>'
+        f'<b>3.</b> Assert on the identity that answered, not on whether an answer came.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
         f"spacingLeft=20;spacingTop=16;verticalAlign=top;fontSize={W_FOOT};{FONT}", 40, 1590, 1740, 150)
     d.write("decision-tree.drawio")
@@ -887,16 +880,15 @@ def build_and_serve():
     d.badge("agentdevico", "agent-bricks", "agentdev", size=30)
 
     d.add("uc", html("Unity Catalog",
-                     "one governance layer over both: lineage for every",
-                     "artefact the pipeline writes, and the grants the",
-                     "agent&apos;s ACL resolves against at query time"),
+                     "one layer over both: lineage for every artefact the",
+                     "pipeline writes, and the grants the ACL resolves against"),
           node(GREEN, WHITE, 3) + "spacingLeft=66;", 24, 720, 830, 120, "build")
     d.badge("ucico2", "unity-catalog", "uc", size=30)
 
     d.add("acln", esc(
         f'<b style="color:{LAVA_DEEP};">The index has no row filter</b>'
-        f'<br><span style="font-size:{W_DETAIL}px;">Whatever the ACL needs at query time has to be written '
-        f'into a metadata column here, at build. Changing that later means a rebuild.</span>'),
+        f'<br><span style="font-size:{W_DETAIL}px;">What the ACL filters on has to be written here, '
+        f'at build. Adding one later is a rebuild.</span>'),
         note(LAVA_DEEP, WHITE), 444, 300, 410, 160, "build")
 
     d.link("b1", "src", "prep", edge(), "on change",
@@ -1101,18 +1093,16 @@ def acl_flow():
     # ── Terminal states, both closed ─────────────────────────────────────────────
     d.add("zero", esc(
         f'<b style="font-size:{W_TITLE}px;color:{LAVA_DEEP};">Return no rows</b><br>'
-        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">and an explicit denial naming which '
-        f'groups granted nothing.<br><br><b>The model is never called.</b> A fluent answer from '
-        f'general knowledge is indistinguishable from a real retrieval.</span>'),
+        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">and a denial naming which groups '
+        f'granted nothing.<br><br><b>The model is never called.</b></span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={WHITE};strokeColor={LAVA_DEEP};"
         f"strokeWidth=3;align=left;spacingLeft=12;spacingRight=10;verticalAlign=top;"
         f"spacingTop=18;fontSize={W_DETAIL};{FONT}", 40, 790, 560, 250)
 
     d.add("err", esc(
         f'<b style="font-size:{W_TITLE}px;color:{LAVA_DEEP};">PermissionError</b><br>'
-        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">a filter column that is not a column of the '
-        f'index would not be applied, so the request stops rather than serving unfiltered '
-        f'results.</span>'),
+        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">the index cannot apply this column, '
+        f'so the request stops.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={WHITE};strokeColor={LAVA_DEEP};"
         f"strokeWidth=3;align=left;spacingLeft=12;spacingRight=10;verticalAlign=top;"
         f"spacingTop=18;fontSize={W_DETAIL};{FONT}", 620, 790, 560, 250)
@@ -1147,7 +1137,7 @@ def acl_flow():
         f'<span style="font-size:{W_FOOT}px;color:{NAVY_DEEP};">Empty means nothing, not everything. A '
         f'malformed mapping raises rather than resolving to empty, so "no entitlement" and '
         f'"something broke" tell themselves apart. A naming convention works while one group means '
-        f'one thing; a declared table is what scales to a combination of columns.</span>'),
+        f'one thing; a declared grants table scales to a combination of columns.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={OAT};strokeColor=none;align=left;"
         f"spacingLeft=20;spacingTop=16;verticalAlign=top;fontSize={W_FOOT};{FONT}", 1200, 790, 560, 210)
     d.write("acl-flow.drawio")
@@ -1401,7 +1391,7 @@ def decision_tree_narrow():
         f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">yes &#8594; code ACL + '
         f'assert_enforceable</b><br><span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">'
         f'You enforce, at query time. Resolve groups per request from the caller\'s own token; map '
-        f'via a declared table. Test the denial path.</span>'),
+        f'via a declared grants table. Test the denial path.</span>'),
         n_node(LAVA, WHITE, 3) + "spacingLeft=48;", X, 756, W, 108)
     d.add("codeico", "", icon("ai-search"), X + 12, 794, 30, 30)
 

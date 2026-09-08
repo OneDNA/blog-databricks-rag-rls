@@ -1,11 +1,11 @@
-"""Caller's groups to entitlements, via a declared table.
+"""Caller's groups to entitlements, via a declared grants table.
 
 This is the ACL itself: the layer that decides what one caller may retrieve. It is short.
 
     $ python 03_acl_from_groups.py
 
 A naming convention is a valid mechanism and needs no configuration at all -- it is what we
-shipped at Witteveen+Bos, and it holds as long as one group maps to one thing. A declared table
+shipped at Witteveen+Bos, and it holds as long as one group maps to one thing. A declared grants table table
 is what you need once a caller's access is a COMBINATION of metadata columns, because then the
 name would have to encode a tuple.
 
@@ -295,7 +295,7 @@ def main() -> int:
     print()
     print("  Anyone able to create a group could grant themselves the entire corpus -- which is")
     print("  what loose matching costs you, not the naming convention itself.")
-    print("  Under the declared table, that same group grants nothing:")
+    print("  Under the declared grants table, that same group grants nothing:")
     print(
         f"    is_empty={Entitlements.from_groups('attacker', [danger], grants).is_empty}"
     )
