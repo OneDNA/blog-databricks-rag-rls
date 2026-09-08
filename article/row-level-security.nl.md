@@ -571,6 +571,11 @@ je eigen OAuth-applicatie als je een specifieke wilt governen.
 > platformkant van de governance-grens. Voor ons is dat een governance-argument en geen
 > latency-argument.
 >
+> Het is wel geen een-op-een-vervanging. AI Search is gebouwd voor serving op grote schaal en kan
+> miljarden vectoren aan; pgvector op Lakebase is niet op diezelfde workloads berekend. Zie het als
+> een optie voor corpora waar de governance-winst meer waard is dan het plafond, niet als
+> drop-in-vervanging.
+>
 > Diezelfde klasse fouten verdwijnt er niet mee. Ons `sensitivity`-filter noemde een kolom die geen
 > enkele stap ooit produceerde, en op pgvector is dat een harde "kolom bestaat niet". Beide
 > backends weigeren het vandaag en het filter is op beide even kapot — wat je in beide gevallen

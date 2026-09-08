@@ -288,8 +288,10 @@ control you have not tested.
 > [!NOTE]
 > **There is another way to do this.** Serve the vectors from pgvector on Lakebase instead of AI
 > Search, and the ACL goes back to being a row-level security policy the database evaluates, which
-> puts enforcement on the platform side of the governance boundary. It does not escape the same
-> class of mistake — our `sensitivity` filter once named a column no stage produced, and on
+> puts enforcement on the platform side of the governance boundary. It is not a like-for-like swap:
+> AI Search is built for large-scale serving and will carry billions of vectors, where pgvector on
+> Lakebase is not sized for the same workloads. And it does not escape the same class of mistake —
+> our `sensitivity` filter once named a column no stage produced, and on
 > pgvector that is a hard "column does not exist", as it now is on AI Search. The filter is equally
 > broken either way; what you get is notice.
 

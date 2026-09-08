@@ -548,6 +548,11 @@ restricts. The other way round, every user your SCIM sync has not populated sees
 > security policy that the database evaluates, which puts enforcement back on the platform side of
 > the governance boundary. For us that is a governance argument rather than a latency one.
 >
+> It is not a like-for-like swap, though. AI Search is built for large-scale serving and will carry
+> billions of vectors; pgvector on Lakebase is not sized for the same workloads. Treat it as an
+> option for corpora where the governance win is worth more than the ceiling, not as a drop-in
+> replacement.
+>
 > It does not escape the same class of mistake. Our `sensitivity` filter named a column no stage
 > ever produced, and on pgvector that is a hard "column does not exist". Both backends refuse it
 > today and the filter is equally broken on both — what you get either way is notice. AI Search
