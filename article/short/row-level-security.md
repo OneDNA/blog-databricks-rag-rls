@@ -82,12 +82,12 @@ alongside it — so your ACL can never be more expressive than the columns you w
 Because a schema change leads to recreating the table, you might spend a lot of tokens on reindexing
 your entire corpus.
 
-Those columns are also a build-side prerequisite, not a retrieval concern. Their values usually come
-from the source system, so the pipeline has to reach them before the serve side can filter on
-anything. At Witteveen+Bos we pulled the SharePoint metadata over the Graph API as a separate step
-and joined it onto the chunks later; the Databricks SharePoint connector now exposes
-`_sharepoint_metadata` directly, which removes that join. It needs DBR 18 LTS, and on older versions
-the read still succeeds with every metadata field absent.
+Those columns are also a build-side prerequisite. Their values usually come from the source system,
+so the pipeline has to reach them before the serve side can filter on anything. In retrieval they
+need to exist, otherwise your filter step fails. At Witteveen+Bos we pulled the SharePoint metadata
+over the Graph API as a separate step and joined it onto the chunks later; the Databricks SharePoint
+connector now exposes `_sharepoint_metadata` directly, which removes that join. It needs DBR 18 LTS,
+and on older versions the read still succeeds with every metadata field absent.
 
 The related problem is that metadata **is** content. If you index `created_by_email` or `web_url` as
 a retrievable column, those values are visible to anyone who can query the index, whether or not
@@ -95,18 +95,12 @@ they can read the chunk text. The ACL has to apply before any column comes back,
 chunk body does.
 
 > [!WARNING]
-> **A filter naming a column the index does not have is ignored.** No error, no warning — it just
-> stops constraining, and the query still returns a plausible row count. So we assert every
-> filter's keys against the columns the index actually has, and raise rather than warn.
-
-> [!NOTE]
-> **September 2026:** re-measuring, AI Search now *refuses* that filter — `Columns referenced in
-> filters are not present in index` — instead of ignoring it. Safer, and it arrived without a
-> release note. Keep the assertion: a rule whose correctness depends on which way the platform
-> last moved is not a rule, and a query-time refusal is a 500 to your caller where the assertion
-> is a clean `PermissionError`. Verify which behaviour your own index has —
-> [`01_index_has_no_rls.py --live`](../../examples/01_index_has_no_rls.py) reports all three
-> outcomes.
+> **A filter naming a column the index does not have refuses the query** — `Columns referenced in
+> filters are not present in index`. Assert every filter's keys against the columns the index
+> actually has anyway, and raise rather than warn: this behaviour moved once without a release
+> note, and a query-time refusal is a 500 to your caller where the assertion is a clean
+> `PermissionError`. Verify which behaviour your own index has —
+> [`01_index_has_no_rls.py --live`](../../examples/01_index_has_no_rls.py) reports every outcome.
 
 ## Building the ACL: four decisions
 

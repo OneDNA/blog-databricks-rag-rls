@@ -86,10 +86,11 @@ bereikt de index niet. Wat aankomt, is wat je bewust in metadatakolommen ernaast
 Omdat een schemawijziging betekent dat de tabel opnieuw aangemaakt moet worden, kun je een hoop
 tokens kwijt zijn aan het opnieuw indexeren van je hele corpus.
 
-Die kolommen zijn ook een randvoorwaarde voor de build-kant en niet iets van de retrieval. Hun
-waarden komen meestal uit het bronsysteem, dus de pipeline moet erbij kunnen voordat de serve-kant
-ergens op kan filteren. Bij Witteveen+Bos haalden we de SharePoint-metadata als aparte stap over de
-Graph API op en joinden die later op de chunks; de Databricks SharePoint-connector stelt inmiddels
+Die kolommen zijn ook een randvoorwaarde voor de build-kant. Hun waarden komen meestal uit het
+bronsysteem, dus de pipeline moet erbij kunnen voordat de serve-kant ergens op kan filteren. Bij
+retrieval moeten ze bestaan, anders faalt je filterstap. Bij Witteveen+Bos haalden we de
+SharePoint-metadata als aparte stap over de Graph API op en joinden die later op de chunks; de
+Databricks SharePoint-connector stelt inmiddels
 `_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt. Dat vereist DBR 18 LTS, en op
 oudere versies slaagt de read nog steeds, maar zonder metadatavelden.
 
@@ -99,18 +100,12 @@ ze de chunktekst nu mogen lezen of niet. De ACL moet toeslaan vóórdat welke ko
 niet alleen vóór de chunktekst.
 
 > [!WARNING]
-> **Een filter dat een kolom noemt die de index niet heeft, wordt genegeerd.** Geen error, geen
-> waarschuwing — het beperkt gewoon niets meer, en de query geeft nog steeds een plausibel aantal
-> rijen. Daarom toetsen we elke filtersleutel aan de kolommen die de index echt heeft.
-
-> [!NOTE]
-> **September 2026:** bij hermeting *weigert* AI Search dat filter nu — `Columns referenced in
-> filters are not present in index` — in plaats van het te negeren. Veiliger, en het kwam zonder
-> release note. Houd de toets toch: een regel die afhangt van welke kant het platform het laatst
-> op bewoog, is geen regel, en een weigering tijdens de query is een 500 voor je aanroeper waar de
-> toets een nette `PermissionError` geeft. Meet welk gedrag jouw index heeft —
-> [`01_index_has_no_rls.py --live`](../../examples/01_index_has_no_rls.py) rapporteert alle drie
-> de uitkomsten.
+> **Een filter dat een kolom noemt die de index niet heeft, weigert de query** — `Columns
+> referenced in filters are not present in index`. Toets elke filtersleutel toch aan de kolommen
+> die de index echt heeft, en gooi een error in plaats van een waarschuwing: dit gedrag is één keer
+> verschoven zonder release note, en een weigering tijdens de query is een 500 voor je aanroeper
+> waar de toets een nette `PermissionError` geeft. Meet welk gedrag jouw index heeft —
+> [`01_index_has_no_rls.py --live`](../../examples/01_index_has_no_rls.py) rapporteert elke uitkomst.
 
 ## De ACL bouwen: vier beslissingen
 

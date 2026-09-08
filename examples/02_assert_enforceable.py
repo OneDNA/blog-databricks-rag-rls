@@ -9,9 +9,10 @@ ignored.
 Three design choices are demonstrated below, and each is a decision rather than a detail:
 
 1. It RAISES rather than warns. A warning in a serving container is a log line nobody reads.
-2. It lives in the ACL layer, not the retriever, so every backend inherits it. pgvector would
-   have raised "column does not exist" on its own; AI Search will not. A rule that only holds
-   on the backend that gives notice is not a rule.
+2. It lives in the ACL layer, not the retriever, so every backend inherits it. Both backends
+   reject an unknown column on their own today, but a rule that only holds on one backend, or
+   on one month's behaviour, is not a rule -- and a refusal at query time is a 500 to your
+   caller, where this is a clean PermissionError before the request leaves.
 3. It asserts against a DECLARED contract rather than introspecting the index at runtime, so
    the check works offline, in tests, and before the index exists.
 """
@@ -37,7 +38,7 @@ def assert_enforceable(filters: dict[str, object]) -> None:
     if unenforceable:
         raise PermissionError(
             f"entitlement axes {unenforceable} are not columns of the index source "
-            f"{list(ACL_FILTER_COLUMNS)}, so filtering on them would be ignored without an error. "
+            f"{list(ACL_FILTER_COLUMNS)}, so the request cannot be filtered as intended. "
             "Add the column to the index (a rebuild) or stop emitting the predicate; "
             "serving unfiltered results is not an option."
         )

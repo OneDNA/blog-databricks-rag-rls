@@ -96,7 +96,7 @@ def test_unmapped_group_alongside_a_mapped_one_adds_nothing():
 
 
 # ==============================================================================================
-# assert_enforceable: the filter that would be ignored without an error.
+# assert_enforceable: the filter the index cannot apply.
 # ==============================================================================================
 
 
@@ -110,7 +110,7 @@ def test_unmapped_group_alongside_a_mapped_one_adds_nothing():
     ],
 )
 def test_unenforceable_axes_are_refused(filters):
-    with pytest.raises(PermissionError, match="ignored without an error"):
+    with pytest.raises(PermissionError, match="are not columns of the index source"):
         guard.assert_enforceable(filters)
 
 

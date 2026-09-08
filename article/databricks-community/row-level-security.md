@@ -55,20 +55,16 @@ Point an AI Search index at those governed tables and the picture changes. ABAC 
 
 ![Governance boundary: table to index](../../diagrams/rendered/governance-boundary.png)
 
-A document travels through parsing, chunking, enrichment and embedding on its way to the index, and the security context does not reach the index. What arrives is what you deliberately wrote into metadata columns alongside it, which means your ACL can never be more expressive than the columns you wrote at index time. Because a schema change, leads to recreating the table, you might spend a lot of tokens on reindexing your entire corpus. Those columns are a build-side prerequisite, not a retrieval concern: their values usually come from the source system, so the pipeline has to reach them before the serve side can filter on anything.
+A document travels through parsing, chunking, enrichment and embedding on its way to the index, and the security context does not reach the index. What arrives is what you deliberately wrote into metadata columns alongside it, which means your ACL can never be more expressive than the columns you wrote at index time. Because a schema change, leads to recreating the table, you might spend a lot of tokens on reindexing your entire corpus. Those columns are a build-side prerequisite. Their values usually come from the source system, so the pipeline has to reach them before the serve side can filter on anything. In retrieval they need to exist, otherwise your filter step fails.
 
 We pulled SharePoint metadata over the Graph API as a separate step and joined it onto the chunks later. The Databricks SharePoint connector now exposes `_sharepoint_metadata` directly, which removes that join — it needs DBR 18 LTS, and on older versions, the read still succeeds with every metadata field absent.
 
 A second caveat: metadata **is** content. If you index `created_by_email` or `web_url` as a retrievable column, those values are visible to anyone who can query the index, whether or not they can read the chunk text. The ACL has to apply before any column comes back, not just before the chunk body does.
 
 > [!WARNING]
-> **A filter naming a column the index does not have is ignored.** No error, no warning — it stops constraining, and the query still returns a plausible row count and a well-sourced answer.
-> Rename a column upstream, rebuild without a field, or typo it, and the caller receives every sensitivity label in the corpus.
-
-> [!NOTE]
-> **Update, September 2026.** Re-running the probe against a fresh index, AI Search now *rejects* an unknown filter column — `BadRequest: Columns referenced in filters are not present in index: sensitivty` — rather than ignoring it. The control probes were unchanged (three rows unfiltered, two on a real column, zero on a real column with no matching value), so filtering was live and this is the platform validating filter keys against the index contract. Measured on one AWS workspace, `STANDARD` endpoint, `HYBRID` index subtype; I have not established whether it holds everywhere.
+> **A filter naming a column the index does not have refuses the query.** AI Search rejects an unknown filter column — `BadRequest: Columns referenced in filters are not present in index: sensitivty` — which is the platform validating filter keys against the index contract. Measured on one AWS workspace, `STANDARD` endpoint, `HYBRID` index subtype, so verify your own.
 >
-> This is better behaviour, and it arrived without a release note. Keep the assertion below anyway: the behaviour moved once and can move again; a column that exists in the source but was never synced into the index is a different and likelier mistake; and a refusal at query time is a 500 to your caller, where the assertion is a clean `PermissionError` before the request leaves. If you have measured different behaviour on your own endpoint type or cloud, I would like to hear about it.
+> Keep the assertion below anyway: this behaviour moved once, without a release note, and can move again; a column that exists in the source but was never synced into the index is a different and likelier mistake; and a refusal at query time is a 500 to your caller, where the assertion is a clean `PermissionError` before the request leaves.
 
 That last one is why we assert every filter's keys against the columns the index actually has, before the query goes out, and raise rather than warn:
 
@@ -78,13 +74,13 @@ def assert_enforceable(filters: dict[str, Any]) -> None:
     if unenforceable:
         raise PermissionError(
             f"entitlement axes {unenforceable} are not columns of the index source "
-            f"{list(ACL_FILTER_COLUMNS)}, so filtering on them would be ignored without an error."
+            f"{list(ACL_FILTER_COLUMNS)}, so the request cannot be filtered as intended."
         )
 ```
 
-It lives in the ACL layer rather than the retriever, so every backend inherits it. pgvector would
-reject an unknown column on its own; AI Search will not, and a rule that only holds on one backend
-is not much of a rule.
+It lives in the ACL layer rather than the retriever, so every backend inherits it. Both backends
+reject an unknown column on their own today, but a rule that only holds on one backend, or on one
+month's behaviour, is not much of a rule.
 
 ## Resolving the caller
 
@@ -154,8 +150,8 @@ Ask *how many hours did we book on Water Delta in Q2* and the question is quanti
 
 Ask *what went wrong on Water Delta, and what did we learn* and the question is qualitative, so it routes to the AI Search index. Alice gets six chunks and an answer citing the retrospective and the closeout note. David gets nothing, because our code passed `{"project_group": "coastal-north"}` and no chunk has that group attached.
 
-Both of David's answers are empty, and while the answers look identical, they are slightly different in mechanism. On the Genie path the platform decided, and it would have decided the same way for any caller on any client. On the AI Search path *our filter* decided — and had we passed no filter, or one naming a
-column the index does not have, he would have received Water Delta chunks with no error and no warning.
+Both of David's answers are empty, and while the answers look identical, they are slightly different in mechanism. On the Genie path the platform decided, and it would have decided the same way for any caller on any client. On the AI Search path *our filter* decided — and had we passed no filter at all, he would have
+received Water Delta chunks with no error and no warning.
 
 `obo_active` reads `true` in all four metadata boxes. That flag is what makes either zero readable:
 without it a zero could mean "correctly filtered" or "identity broken", and the two are

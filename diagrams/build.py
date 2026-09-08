@@ -716,9 +716,9 @@ def architecture():
         note(LAVA_DEEP, WHITE), 20, 400, 560, 130, "q")
 
     d.add("drop", esc(
-        f'<b style="color:{LAVA_DEEP};">Silently ignored</b><br>'
-        f'<span style="font-size:{W_DETAIL}px;">A filter naming a column the index does not have stops '
-        f'constraining. No error, no log line, and a plausible row count.</span>'), note(LAVA_DEEP, WHITE), 600, 400, 590, 130, "q")
+        f'<b style="color:{LAVA_DEEP};">Your filter, your problem</b><br>'
+        f'<span style="font-size:{W_DETAIL}px;">A filter naming a column the index does not have is '
+        f'refused at query time — a 500 to your caller unless you assert first.</span>'), note(LAVA_DEEP, WHITE), 600, 400, 590, 130, "q")
 
     d.add("sp", esc(
         f'<b style="color:{LAVA_DEEP};">Non-interactive callers</b><br>'
@@ -1024,8 +1024,8 @@ def governance_boundary():
         30, 240, 640, 145, "ungov")
 
     d.add("ungovnote", esc(
-        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">A filter naming a column the index does '
-        f'not have is <b>ignored</b>. No error, no log line, and a plausible row count.</span>'),
+        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">Nothing validates your filter until '
+        f'query time, and a wrong column name is <b>refused</b> there.</span>'),
         note(LAVA_DEEP, WHITE), 30, 415, 640, 100, "ungov")
 
     d.link("il", "idx", "gone", edge(LAVA_DEEP, 2, dashed=True, arrow="none"),
@@ -1245,8 +1245,8 @@ def governance_boundary_narrow():
            ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;", parent="ungov")
     d.link("x2", "cross", "ungov", edge(NAVY, 3, fsize=N_DETAIL), ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
 
-    _n_foot(d, 748, "A filter naming a column the index does not have is <b>ignored</b>. No error, "
-                    "no log line, and a plausible row count.")
+    _n_foot(d, 748, "Nothing validates your filter until query time, and a wrong column name is "
+                    "<b>refused</b> there.")
     d.write("governance-boundary-narrow.drawio")
 
 
@@ -1366,7 +1366,7 @@ def acl_flow_narrow():
     d.add("err", esc(
         f'<b style="font-size:{N_TITLE}px;color:{LAVA_DEEP};">unknown axis &#8594; '
         f'PermissionError</b><br><span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">'
-        f'filtering on it would be ignored, so the request stops</span>'),
+        f'the index cannot filter on it, so the request stops</span>'),
         n_node(LAVA_DEEP, WHITE, 3) + "spacingLeft=18;", X, y, W, 82)
     y += 108
 

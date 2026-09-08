@@ -142,10 +142,11 @@ daarvoor drie metadatakolommen — `source_system`, `site_id` en `sensitivity` �
 waarden die de aanroeper mag zien. Die drie kolommen bestaan omdat de toegangseis ze nodig had, en
 je kiest ze bij het indexeren.
 
-Daarmee zijn ze een randvoorwaarde voor de pipeline en niet iets van de retrieval. De waarden moeten
-meestal uit het bronsysteem zelf komen, dus de build-kant moet erbij kunnen voordat de serve-kant
-ergens op kan filteren. Bij Witteveen+Bos haalden we de SharePoint-metadata als aparte stap over de
-Graph API op en joinden die later op de chunks. De Databricks SharePoint-connector stelt inmiddels
+Daarmee zijn ze een randvoorwaarde voor de pipeline. De waarden moeten meestal uit het bronsysteem
+zelf komen, dus de build-kant moet erbij kunnen voordat de serve-kant ergens op kan filteren. Bij
+retrieval moeten ze bestaan, anders faalt je filterstap. Bij Witteveen+Bos haalden we de
+SharePoint-metadata als aparte stap over de Graph API op en joinden die later op de chunks. De
+Databricks SharePoint-connector stelt inmiddels
 `_sharepoint_metadata` direct beschikbaar, waarmee die join verdwijnt. Dat vereist DBR 18 LTS, en op
 oudere versies slaagt de read nog steeds, maar zonder metadatavelden.
 
@@ -170,51 +171,36 @@ def assert_enforceable(filters: dict[str, Any]) -> None:
 ```
 
 Hij gooit een error in plaats van een waarschuwing, en hij zit in de ACL-laag en niet in de
-retriever zodat elke backend hem erft. pgvector wijst een onbekende kolom zelf af; AI Search deed
-dat niet toen dit gemeten werd — zie de noot hieronder, want dat is inmiddels veranderd — en een
-regel die maar op één backend geldt, of maar op het gedrag van één maand, is niet echt een regel.
+retriever zodat elke backend hem erft. Beide backends wijzen een onbekende kolom vandaag zelf af,
+maar een regel die maar op één backend geldt, of maar op het gedrag van één maand, is niet echt een
+regel.
 
 > [!WARNING]
-> **Een filter dat een kolom noemt die de index niet heeft, wordt genegeerd.** Het geeft geen error
-> en waarschuwt niet: het houdt op met beperken. Hernoem stroomopwaarts een kolom, herbouw de index
-> zonder een veld, of maak een typefout, en de query slaagt met een plausibel rijaantal en een goed
-> onderbouwd antwoord. De aanroeper krijgt élk sensitivity-label in het corpus. Daarom toetst de
-> guard hierboven tegen het kolomcontract in plaats van het filter te vertrouwen, en daarom is een
-> filter dat niets mag opleveren het draaien waard bij elke deploy.
-
-> [!NOTE]
-> **Update, september 2026 — dit is veranderd, en de verandering maakt het punt beter dan de
-> oorspronkelijke bevinding.** `01_index_has_no_rls.py --live` opnieuw draaien tegen een verse
-> index reproduceert het stille verbreden niet meer. De typefout komt nu terug als harde fout:
+> **Een filter dat een kolom noemt die de index niet heeft, weigert de query.** Een typefout komt
+> terug als harde fout:
 >
 > ```
 > BadRequest: Columns referenced in filters are not present in index: sensitivty
 > ```
 >
-> Het predicaat wordt geweigerd in plaats van weggelaten. De drie controleprobes waren onveranderd
-> — drie rijen ongefilterd, twee op een echte kolom, nul op een echte kolom zonder match — dus het
-> filteren wérkte, en de weigering is het platform dat filtersleutels tegen het indexcontract
-> toetst. Precies wat de guard hierboven met de hand moest doen.
+> Het predicaat wordt geweigerd in plaats van weggelaten: het platform toetst filtersleutels tegen
+> het indexcontract — precies wat de guard hierboven met de hand doet. Gemeten op één
+> AWS-workspace, `STANDARD`-endpoint, `HYBRID`-indexsubtype, dus meet zelf welk gedrag jouw index
+> heeft: [`01_index_has_no_rls.py --live`](../examples/01_index_has_no_rls.py) rapporteert elke
+> uitkomst.
 >
-> Gemeten op één AWS-workspace, `STANDARD`-endpoint, `HYBRID`-indexsubtype. Of het over
-> endpointtypes, clouds en regio's heen standhoudt, heb ik niet vastgesteld.
+> Houd de guard toch, om drie redenen, waarvan de eerste de belangrijkste is:
 >
-> Houd de guard. Drie redenen, waarvan de eerste de belangrijkste is:
->
-> 1. **Het gedrag bewoog zonder release note.** Deze keer richting veiligheid. Een regel waarvan de
->    juistheid afhangt van welke kant het platform het laatst op bewoog, is geen regel — precies
->    het argument dat deze paragraaf al over pgvector maakt, nu met het platform zelf als
->    voorbeeld in plaats van een tweede backend.
-> 2. **Een kolom die wél bestaat maar niet gesynct is, is een ander geval.** Dit test een kolom die
->    *nergens* bestaat. Een kolom die in de brontabel staat maar nooit de index in ging, hoeft niet
->    zo hard te weigeren — en dat is de waarschijnlijkere productiefout.
+> 1. **Dit gedrag bewoog al een keer, zonder release note.** Richting veiligheid, maar een regel
+>    waarvan de juistheid afhangt van welke kant het platform het laatst op bewoog, is geen regel —
+>    precies het argument dat deze paragraaf over pgvector maakt, nu met het platform zelf als
+>    voorbeeld.
+> 2. **Een kolom die wél bestaat maar niet gesynct is, is een ander geval.** De probe hierboven
+>    test een kolom die *nergens* bestaat. Een kolom die in de brontabel staat maar nooit de index
+>    in ging, hoeft niet zo hard te weigeren — en dat is de waarschijnlijkere fout.
 > 3. **Weigeren tijdens de query is een 500 voor je aanroeper.** De guard maakt van dezelfde fout
 >    een `PermissionError` vóórdat het request de deur uit is: het verschil tussen een geweigerde
 >    query en een kapot endpoint.
->
-> De eerlijke samenvatting: het specifieke falen waarop deze paragraaf is gebouwd, is voorlopig
-> gerepareerd op de backend die ik meette. De redenering overleeft dat, en je hoort zelf te meten
-> welk gedrag jouw index heeft in plaats van een van beide versies van deze alinea te vertrouwen.
 
 ## De ACL bouwen: vier beslissingen
 
@@ -593,15 +579,11 @@ de grens die dit artikel steeds trekt. Voor ons is dat een governance-argument e
 latency-argument.
 
 Diezelfde klasse fouten verdwijnt er niet mee. Ons `sensitivity`-filter noemde een kolom die geen
-enkele stap ooit produceerde: op AI Search werd dat genegeerd, en een aanroeper die tot `internal`
-beperkt was kreeg zonder enige melding `confidential`-rijen. Op pgvector is hetzelfde filter een
-harde "kolom bestaat niet" — dat geeft een signaal, en is even kapot. Een regel die alleen
-standhoudt op de backend die een signaal geeft, is geen regel. Wat verandert, is dat je het merkt.
-
-Hermeten in september 2026 scherpte dit aan in plaats van het te beslechten: AI Search weigert dat
-filter nu ook, dus beide backends geven een signaal — en het filter is op beide nog even kapot. Het
-platform bewoog, de veilige kant op, zonder het te melden. Dat is het argument om de controle zelf
-in handen te houden, geen bewijs dat je ermee kunt stoppen.
+enkele stap ooit produceerde, en op pgvector is dat een harde "kolom bestaat niet" in plaats van
+een stille doorlaat. Beide backends geven vandaag een signaal, en het filter is op beide even
+kapot — wat verandert, is dat je het merkt. AI Search kwam daar door te bewegen, de veilige kant
+op, zonder het te melden. Dat is het argument om de check zelf te bezitten, geen bewijs dat je
+ermee kunt stoppen.
 
 ## Aanbevelingen
 
