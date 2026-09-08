@@ -216,9 +216,9 @@ je hem schreef.
 
 Vraag hoeveel uren er per projectgroep zijn geboekt en een similarity search over proza geeft
 passages terug, en geen enkel aantal passages telt op tot een totaal. Daarom heeft de agent een
-tweede retrieval-pad: prozavragen gaan naar similarity search, aantallen en totalen naar een
-Genie-space die SQL genereert tegen beheerde tabellen. Beide draaien op de credentials van de
-aanroeper.
+tweede retrieval-pad: prozavragen gaan naar similarity search, aantallen en totalen naar een Genie
+Agent (voorheen een Genie-space) die SQL genereert tegen beheerde tabellen. Beide draaien op de
+credentials van de aanroeper.
 
 ![Row-level security in een Databricks RAG-pipeline](../../diagrams/rendered/architecture.png)
 
@@ -241,7 +241,7 @@ principal van het endpoint.
 > pad moet dus de grants van die service principal nagaan.
 
 Er is een configuratieroute naar hetzelfde punt. Databricks documenteert dat een service principal
-toegang geven tot een Genie-space ook vereist dat je de onderliggende tabellen en warehouse
+toegang geven tot een Genie Agent ook vereist dat je de onderliggende tabellen en warehouse
 verleent. Volg die richtlijn voor een agent en het endpoint houdt een staande grant op de data, dus
 ziet iedere aanroeper de vereniging van wat het endpoint mag lezen. Onder user authorization heb je
 die grants niet nodig; voeg ze niet toe.

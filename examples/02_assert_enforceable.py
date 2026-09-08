@@ -37,7 +37,7 @@ def assert_enforceable(filters: dict[str, object]) -> None:
     unenforceable = sorted(set(filters) - set(ACL_FILTER_COLUMNS))
     if unenforceable:
         raise PermissionError(
-            f"entitlement axes {unenforceable} are not columns of the index source "
+            f"filter columns {unenforceable} are not columns of the index source "
             f"{list(ACL_FILTER_COLUMNS)}, so the request cannot be filtered as intended. "
             "Add the column to the index (a rebuild) or stop emitting the predicate; "
             "serving unfiltered results is not an option."
@@ -52,12 +52,12 @@ def assert_enforceable(filters: dict[str, object]) -> None:
 
 def build_filter_unguarded(entitlements: dict[str, list[str]]) -> dict[str, list[str]]:
     """What we had before. Correct-looking, and quietly unsafe."""
-    return {axis: sorted(values) for axis, values in entitlements.items() if values}
+    return {col: sorted(values) for col, values in entitlements.items() if values}
 
 
 def build_filter_guarded(entitlements: dict[str, list[str]]) -> dict[str, list[str]]:
     """What we have now. Identical, plus one line that cannot be forgotten."""
-    filters = {axis: sorted(values) for axis, values in entitlements.items() if values}
+    filters = {col: sorted(values) for col, values in entitlements.items() if values}
     assert_enforceable(filters)
     return filters
 
@@ -69,7 +69,7 @@ CASES: list[tuple[str, dict[str, list[str]], bool]] = [
         True,
     ),
     (
-        "all three axes",
+        "all three filter columns",
         {"source_system": ["docs_a"], "site_id": ["site-1"], "sensitivity": ["internal"]},
         True,
     ),
@@ -79,7 +79,7 @@ CASES: list[tuple[str, dict[str, list[str]], bool]] = [
         False,
     ),
     (
-        "an axis nobody added to the index",
+        "a column nobody added to the index",
         {"source_system": ["docs_a"], "department": ["finance"]},
         False,
     ),
@@ -101,8 +101,8 @@ def main() -> int:
     for label, entitlement, should_pass in CASES:
         # Unguarded: builds a filter regardless. The danger is that this NEVER fails.
         unguarded = build_filter_unguarded(entitlement)
-        bad_axes = sorted(set(unguarded) - set(ACL_FILTER_COLUMNS))
-        unguarded_note = "built (unsafe, and it does not raise)" if bad_axes else "built"
+        bad_cols = sorted(set(unguarded) - set(ACL_FILTER_COLUMNS))
+        unguarded_note = "built (unsafe, and it does not raise)" if bad_cols else "built"
 
         try:
             build_filter_guarded(entitlement)
@@ -122,7 +122,7 @@ def main() -> int:
     print("=" * 92)
     print()
     print("Read the middle column. The unguarded builder never fails -- it happily returns a")
-    print("filter containing an axis the index will ignore, and the query then succeeds, returns")
+    print("filter naming a column the index does not have, and the query then succeeds, returns")
     print("a plausible number of rows, and serves content the caller is not entitled to.")
     print()
     print("That is the whole argument for the guard: the unsafe path has no symptom.")

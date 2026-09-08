@@ -683,7 +683,7 @@ def architecture():
     d.add("grants", html("declared grants table", "group &#8594; entitlement",
                          "<i>once one group is a tuple</i>"),
           node(LAVA) + "spacingLeft=16;", 830, 76, 300, 150, "q")
-    d.add("guard", html("assert_enforceable()", "axes &#8594; index columns?",
+    d.add("guard", html("assert_enforceable()", "filter cols &#8594; index cols?",
                         f'<b style="color:{LAVA_DEEP};">raise, never warn</b>'),
           node(LAVA, WHITE, 3) + "spacingLeft=16;", 1160, 76, 300, 150, "q")
     d.add("idx", esc(f'<b style="font-size:{W_TITLE}px;">AI Search index</b>'
@@ -691,7 +691,7 @@ def architecture():
           store(LAVA_DEEP), 1500, 68, 300, 130, "q")
     d.badge("idxico", "ai-search", "idx", size=28, side="right")
 
-    d.add("genie", html("Genie space", "generates SQL"), node(LAVA) + "spacingLeft=58;", 500, 250, 300, 110, "q")
+    d.add("genie", html("Genie Agent", "generates SQL"), node(LAVA) + "spacingLeft=58;", 500, 250, 300, 110, "q")
     d.badge("genieico", "genie-agents", "genie", size=30)
     d.add("uc", html("Unity Catalog", "row filters + column masks",
                      f'<b style="color:#2E7D32;">evaluated per caller</b>'),
@@ -924,7 +924,7 @@ def build_and_serve():
                       f'read at query time, never written</span>'),
           store(LAVA_DEEP), 444, 80, 410, 135, "serve")
 
-    d.add("gen", html("Genie space", "SQL over governed tables.",
+    d.add("gen", html("Genie Agent", "SQL over governed tables.",
                       "Unity Catalog evaluates the caller."),
           node(GREEN) + "spacingLeft=66;", 490, 300, 364, 155, "serve")
     d.badge("genico2", "genie-agents", "gen", size=30)
@@ -1110,7 +1110,7 @@ def acl_flow():
 
     d.add("err", esc(
         f'<b style="font-size:{W_TITLE}px;color:{LAVA_DEEP};">PermissionError</b><br>'
-        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">an axis that is not a column of the '
+        f'<span style="font-size:{W_DETAIL}px;color:{NAVY_DEEP};">a filter column that is not a column of the '
         f'index would not be applied, so the request stops rather than serving unfiltered '
         f'results.</span>'),
         f"rounded=0;html=1;whiteSpace=wrap;fillColor={WHITE};strokeColor={LAVA_DEEP};"
@@ -1140,7 +1140,7 @@ def acl_flow():
 
     d.link("a9", "empty", "zero", edge(LAVA_DEEP, 3), "yes",
            ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
-    d.link("a12", "assert", "err", edge(LAVA_DEEP, 3), "unknown axis",
+    d.link("a12", "assert", "err", edge(LAVA_DEEP, 3), "unknown column",
            ports="exitX=0.5;exitY=1;entryX=0.5;entryY=0;")
 
     d.add("foot", esc(
@@ -1259,7 +1259,7 @@ def build_and_serve_narrow():
                       f'<br><span style="font-size:{N_DETAIL}px;color:{NAVY_SOFT};">'
                       f'read at query time, never written</span>'),
           store(LAVA) + f"fontSize={N_TITLE};", 20, 186, HALF, 88, "serve")
-    d.add("gen", n_html("Genie space", "SQL over governed tables.",
+    d.add("gen", n_html("Genie Agent", "SQL over governed tables.",
                         "Unity Catalog evaluates the caller."),
           n_node(GREEN) + "spacingLeft=18;", 410, 186, HALF, 88, "serve")
     d.add("who", esc(
@@ -1268,7 +1268,7 @@ def build_and_serve_narrow():
         f'</span>'),
         n_note(), 20, 288, 720, 62, "serve")
     # ui -> dep runs straight across. The agent then splits downward: left into the
-    # index it filters, and straight down into the Genie space beneath it.
+    # index it filters, and straight down into the Genie Agent beneath it.
     d.link("s1", "ui", "dep", edge(fsize=N_DETAIL), "",
            ports="exitX=1;exitY=0.5;entryX=0;entryY=0.5;", parent="serve")
     d.link("s2", "dep", "read", edge(LAVA, fsize=N_DETAIL), "",
@@ -1334,7 +1334,7 @@ def acl_flow_narrow():
     y += 110
 
     d.add("err", esc(
-        f'<b style="font-size:{N_TITLE}px;color:{LAVA_DEEP};">unknown axis &#8594; '
+        f'<b style="font-size:{N_TITLE}px;color:{LAVA_DEEP};">unknown column &#8594; '
         f'PermissionError</b><br><span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">'
         f'the index cannot filter on it, so the request stops</span>'),
         n_node(LAVA_DEEP, WHITE, 3) + "spacingLeft=18;", X, y, W, 82)
@@ -1350,7 +1350,7 @@ def acl_flow_narrow():
     main = ["caller", "tok", "scim", "groups", "grantmap", "ent", "empty",
             "filt", "assert", "query"]
     # A single column, read top to bottom. The two terminal boxes are labelled with the
-    # branch that reaches them ("yes ->", "unknown axis ->") and coloured deep lava, so
+    # branch that reaches them ("yes ->", "unknown column ->") and coloured deep lava, so
     # they read as exits rather than as steps the happy path passes through.
     chain = ["caller", "tok", "scim", "groups", "grantmap", "ent", "empty",
              "zero", "filt", "assert", "err", "query"]
@@ -1498,7 +1498,7 @@ def architecture_narrow():
           n_node(LAVA) + "spacingLeft=18;", 410, 62, HALF, 94, "sv")
     d.add("idx2", n_html("AI Search index", "similarity + your filter"),
           n_node(LAVA) + "spacingLeft=18;", 20, 176, HALF, 88, "sv")
-    d.add("genie", n_html("Genie space", "SQL, Unity Catalog per caller"),
+    d.add("genie", n_html("Genie Agent", "SQL, Unity Catalog per caller"),
           n_node(GREEN) + "spacingLeft=18;", 410, 176, HALF, 88, "sv")
     d.add("ans", esc(
         f'<b style="font-size:{N_TITLE}px;color:{NAVY_DEEP};">Answer + which control applied</b>'

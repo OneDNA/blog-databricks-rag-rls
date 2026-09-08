@@ -129,7 +129,7 @@ def assert_enforceable(filters: dict[str, Any]) -> None:
     unenforceable = sorted(set(filters) - set(ACL_FILTER_COLUMNS))
     if unenforceable:
         raise PermissionError(
-            f"entitlement axes {unenforceable} are not columns of the index source "
+            f"filter columns {unenforceable} are not columns of the index source "
             f"{list(ACL_FILTER_COLUMNS)}, so the request cannot be filtered as intended."
         )
 ```
@@ -255,14 +255,15 @@ page. Border colour marks who enforces.
 ![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
 
 ## Two things that surprised us
-**Which tables you add to a Genie space is not a security control.** We asked four times, across
-two identities, for a table we had deliberately not added, and Genie refused every time and
-generated no SQL. That looks like enforcement, but it is the model declining to name a table it was
-never shown, and a model update can change it without a release note. Databricks does not document
-it as a limit on what Genie can reach. Rely on Unity Catalog grants instead.
+**Which tables you add to a Genie Agent (formerly a Genie space) is not a security control.** We
+asked four times, across two identities, for a table we had deliberately not added, and Genie
+refused every time and generated no SQL. That looks like enforcement, but it is the model declining
+to name a table it was never shown, and a model update can change it without a release note.
+Databricks does not document it as a limit on what Genie can reach. Rely on Unity Catalog grants
+instead.
 
 **A documented configuration path overrules on-behalf-of and takes the SP identity.** Granting a
-service principal access to a Genie space also requires granting its underlying tables and
+service principal access to a Genie Agent also requires granting its underlying tables and
 warehouse. Follow that for an agent and the endpoint holds a standing grant on the data, so every
 caller sees the union of what the endpoint may read. Under user authorisation you do not need those
 grants. `SystemAuthPolicy` should declare only the chat model; `UserAuthPolicy` handles the rest.

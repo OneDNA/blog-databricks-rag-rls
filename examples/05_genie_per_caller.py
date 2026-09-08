@@ -1,7 +1,7 @@
 """The contrast: a path where Unity Catalog does the enforcing, and the problem inside it.
 
 Everything in examples 01-04 is about the index path, where YOU enforce. This is the other
-branch of the same agent -- a Genie space over governed tables, where the platform enforces.
+branch of the same agent -- a Genie Agent over governed tables, where the platform enforces.
 
     $ python 05_genie_per_caller.py
 
@@ -134,7 +134,7 @@ def main() -> int:
 
     print("\n" + "=" * 88)
     print("\nTHE CONFIGURATION VERSION OF THE SAME PROBLEM\n")
-    print("  Databricks documents that granting an SP access to a Genie space also requires")
+    print("  Databricks documents that granting an SP access to a Genie Agent also requires")
     print("  granting its underlying tables and warehouse. Follow that for an agent and you have")
     print("  given the ENDPOINT a standing grant on the data -- so every caller sees the union of")
     print("  what the endpoint may read -- on-behalf-of overruled, by following the docs.")
@@ -144,7 +144,7 @@ def main() -> int:
 
     print("\n" + "=" * 88)
     print("\nAND ONE THING THAT IS *NOT* A SECURITY CONTROL\n")
-    print("  Which tables you add to a Genie space is NOT a security control.")
+    print("  Which tables you add to a Genie Agent is NOT a security control.")
     print()
     print("  We asked four times, two identities, for a table we deliberately did not add.")
     print("  All four refused, generating no SQL at all. That looks like enforcement. It is not.")

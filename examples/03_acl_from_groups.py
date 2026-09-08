@@ -23,7 +23,7 @@ from typing import Any, Iterable, Mapping
 
 
 # --------------------------------------------------------------------------------------------
-# The grant: what one group entitles you to, on each of three axes.
+# The grant: what one group entitles you to, on each of three filter columns.
 # --------------------------------------------------------------------------------------------
 
 
@@ -248,10 +248,10 @@ def main() -> int:
 
     print("A declared grants table maps group -> entitlement:\n")
     for name, grant in grants.items():
-        axes = [f"source_systems={sorted(grant.source_systems)}"]
+        cols = [f"source_systems={sorted(grant.source_systems)}"]
         if grant.sensitivity_labels:
-            axes.append(f"sensitivity={sorted(grant.sensitivity_labels)}")
-        print(f"  {name:<18} {', '.join(axes)}")
+            cols.append(f"sensitivity={sorted(grant.sensitivity_labels)}")
+        print(f"  {name:<18} {', '.join(cols)}")
 
     print("\n" + "=" * 82)
     print("\nResolving callers:\n")

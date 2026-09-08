@@ -209,7 +209,8 @@ wrote it.
 
 Asked how many hours were booked per project group, a similarity search over prose returns passages,
 and no number of passages adds up to a total. So the agent has a second retrieval path: prose
-questions go to similarity search, counts and totals go to a Genie space generating SQL against
+questions go to similarity search, counts and totals go to a Genie Agent (formerly a Genie space)
+generating SQL against
 governed tables. Both run on the caller's credentials.
 
 ![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
@@ -231,7 +232,7 @@ service principal.
 > service principal's grants.
 
 There is a configuration route to the same place. Databricks documents that granting a service
-principal access to a Genie space also requires granting its underlying tables and warehouse. Follow
+principal access to a Genie Agent also requires granting its underlying tables and warehouse. Follow
 that guidance for an agent and the endpoint holds a standing grant on the data, so every caller sees
 the union of what the endpoint may read. Under user authorisation you do not need those grants; do
 not add them.

@@ -162,7 +162,7 @@ def assert_enforceable(filters: dict[str, Any]) -> None:
     unenforceable = sorted(set(filters) - set(ACL_FILTER_COLUMNS))
     if unenforceable:
         raise PermissionError(
-            f"entitlement axes {unenforceable} are not columns of the index source "
+            f"filter columns {unenforceable} are not columns of the index source "
             f"{list(ACL_FILTER_COLUMNS)}, so filtering on them would not be applied. "
             "Add the column to INDEX_BASE_COLUMNS (a rebuild) or stop emitting the predicate; "
             "serving unfiltered results is not an option."
@@ -479,7 +479,8 @@ Niet elke vraag is een documentvraag. Vraag hoeveel uren er per projectgroep zij
 similarity search over proza geeft passages terug, en geen enkel aantal passages telt op tot een
 totaal. Daarom heeft de agent een tweede retrieval-pad, waar het platform het handhaven weer
 overneemt, en kiest het model ertussen. Vragen over besluiten en onderbouwing gaan naar similarity
-search over proza; vragen over aantallen en totalen gaan naar een Genie-space, die SQL genereert
+search over proza; vragen over aantallen en totalen gaan naar een Genie Agent (voorheen een
+Genie-space), die SQL genereert
 tegen beheerde tabellen. Beide draaien op de credentials van de aanroeper, dus het
 identiteitsverhaal is op beide takken hetzelfde en het model kan zich geen weg banen naar een
 bevoorrecht pad. Wat verschilt, is wie handhaaft. Op de prozatak is dat onze gedeclareerde
@@ -509,12 +510,12 @@ declareert `SystemAuthPolicy` alleen het chatmodel en regelt `UserAuthPolicy` de
 > differentiatie. Een review van dit pad moet dus de grants van die service principal nagaan.
 
 Er is een configuratieroute naar hetzelfde punt. Databricks documenteert dat een SP toegang geven
-tot een Genie-space ook vereist dat je de onderliggende tabellen en warehouse verleent. Volg die
+tot een Genie Agent ook vereist dat je de onderliggende tabellen en warehouse verleent. Volg die
 richtlijn voor een agent en het endpoint houdt een staande grant op de data, dus ziet iedere
 aanroeper de vereniging van wat het endpoint mag lezen. Onder user authorization heb je die grants
 niet nodig; voeg ze niet toe.
 
-Welke tabellen je aan een Genie-space toevoegt is ook geen security-control. We vroegen vier keer,
+Welke tabellen je aan een Genie Agent toevoegt is ook geen security-control. We vroegen vier keer,
 met twee identiteiten, om een tabel die we er expres niet aan hadden toegevoegd, en Genie weigerde
 elke keer en genereerde geen SQL. Dat lijkt op handhaving, maar het is het model dat een tabel niet
 noemt die het nooit heeft gezien, en een modelupdate kan dat veranderen zonder release note.

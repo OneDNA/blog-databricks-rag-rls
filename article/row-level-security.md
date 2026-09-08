@@ -156,7 +156,7 @@ def assert_enforceable(filters: dict[str, Any]) -> None:
     unenforceable = sorted(set(filters) - set(ACL_FILTER_COLUMNS))
     if unenforceable:
         raise PermissionError(
-            f"entitlement axes {unenforceable} are not columns of the index source "
+            f"filter columns {unenforceable} are not columns of the index source "
             f"{list(ACL_FILTER_COLUMNS)}, so filtering on them would not be applied. "
             "Add the column to INDEX_BASE_COLUMNS (a rebuild) or stop emitting the predicate; "
             "serving unfiltered results is not an option."
@@ -459,7 +459,8 @@ Not every question is a document question. Asked how many hours were booked per 
 similarity search over prose returns passages, and no number of passages adds up to a total. So the
 agent has a second retrieval path, where the platform does the enforcing again, and the model routes
 between them. Questions about decisions and rationale go to similarity search over prose; questions
-about counts and totals go to a Genie space, which generates SQL against governed tables. Both run
+about counts and totals go to a Genie Agent (formerly a Genie space), which generates SQL against
+governed tables. Both run
 on the caller's credentials, so the identity story is the same on either branch and the model cannot
 route its way to a privileged path. What differs is who enforces. On the prose branch it is our
 declared grants table, so the reason you got a passage is "one of your groups allowed it". On the
@@ -489,11 +490,11 @@ and `UserAuthPolicy` handles the rest.
 > this path has to check the service principal's grants.
 
 There is a configuration route to the same place. Databricks documents that granting an SP access to
-a Genie space also requires granting its underlying tables and warehouse. Follow that guidance for
+a Genie Agent also requires granting its underlying tables and warehouse. Follow that guidance for
 an agent and the endpoint holds a standing grant on the data, so every caller sees the union of what
 the endpoint may read. Under user authorisation you do not need those grants; do not add them.
 
-Which tables you add to a Genie space is not a security control either. We asked four times, across
+Which tables you add to a Genie Agent is not a security control either. We asked four times, across
 two identities, for a table we had deliberately not added, and Genie refused every time and
 generated no SQL. That looks like enforcement, but it is the model declining to name a table it was
 never shown, and a model update can change it without a release note. Databricks does not document
