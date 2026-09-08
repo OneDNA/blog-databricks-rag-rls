@@ -494,11 +494,11 @@ a Genie space also requires granting its underlying tables and warehouse. Follow
 an agent and the endpoint holds a standing grant on the data, so every caller sees the union of what
 the endpoint may read. Under user authorisation you do not need those grants; do not add them.
 
-A Genie space's curated table list is not a security control either. We asked four times, across
-two identities, for a table deliberately left off the list, and Genie refused every time and
+Which tables you add to a Genie space is not a security control either. We asked four times, across
+two identities, for a table we had deliberately not added, and Genie refused every time and
 generated no SQL. That looks like enforcement, but it is the model declining to name a table it was
-never shown, and a model update can change it without a release note. The Databricks documentation
-does not promise the list limits what Genie can reach. Rely on Unity Catalog grants instead.
+never shown, and a model update can change it without a release note. Databricks does not document
+it as a limit on what Genie can reach. Rely on Unity Catalog grants instead.
 
 ## Platform features in preview
 
@@ -535,8 +535,8 @@ restricts. The other way round, every user your SCIM sync has not populated sees
 > security policy that the database evaluates, so Postgres applies the filter rather than your
 > retrieval code. For us that is a governance argument rather than a latency one.
 >
-> It is not a like-for-like swap. AI Search is built for large-scale serving and will carry
-> billions of vectors; pgvector on Lakebase is not sized for the same workloads.
+> It is not a like-for-like swap. A storage-optimized AI Search endpoint is documented to a
+> billion embeddings; pgvector on Lakebase is not sized for that.
 >
 > It does not escape the same class of mistake. Our `sensitivity` filter named a column no stage
 > ever produced, and on pgvector that is a hard "column does not exist". Both backends refuse it

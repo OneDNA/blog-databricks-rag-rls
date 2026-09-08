@@ -515,12 +515,12 @@ richtlijn voor een agent en het endpoint houdt een staande grant op de data, dus
 aanroeper de vereniging van wat het endpoint mag lezen. Onder user authorization heb je die grants
 niet nodig; voeg ze niet toe.
 
-De gecureerde tabellenlijst van een Genie-space is ook geen security-control. We vroegen vier keer,
-met twee identiteiten, om een tabel die we er expres buiten hadden gelaten, en Genie weigerde elke
-keer en genereerde geen SQL. Dat lijkt op handhaving, maar het is het model dat een tabel niet noemt
-die het nooit heeft gezien, en een modelupdate kan dat veranderen zonder release note. De
-Databricks-documentatie belooft niet dat de lijst begrenst wat Genie kan bereiken. Vertrouw in
-plaats daarvan op Unity Catalog-grants.
+Welke tabellen je aan een Genie-space toevoegt is ook geen security-control. We vroegen vier keer,
+met twee identiteiten, om een tabel die we er expres niet aan hadden toegevoegd, en Genie weigerde
+elke keer en genereerde geen SQL. Dat lijkt op handhaving, maar het is het model dat een tabel niet
+noemt die het nooit heeft gezien, en een modelupdate kan dat veranderen zonder release note.
+Databricks documenteert het niet als grens op wat Genie kan bereiken. Vertrouw in plaats daarvan op
+Unity Catalog-grants.
 
 ## Platformfeatures in preview
 
@@ -557,8 +557,8 @@ je eigen OAuth-applicatie als je een specifieke wilt governen.
 > van jouw retrievalcode. Voor ons is dat een governance-argument en geen
 > latency-argument.
 >
-> Het is geen een-op-een-vervanging. AI Search is gebouwd voor serving op grote schaal en kan
-> miljarden vectoren aan; pgvector op Lakebase is niet op diezelfde workloads berekend.
+> Het is geen een-op-een-vervanging. Een storage-optimized AI Search-endpoint is gedocumenteerd tot
+> een miljard embeddings; pgvector op Lakebase is daar niet op berekend.
 >
 > Diezelfde klasse fouten verdwijnt er niet mee. Ons `sensitivity`-filter noemde een kolom die geen
 > enkele stap ooit produceerde, en op pgvector is dat een harde "kolom bestaat niet". Beide

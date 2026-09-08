@@ -143,16 +143,16 @@ def main() -> int:
     print("  Declare only the chat model in SystemAuthPolicy; UserAuthPolicy handles the rest.")
 
     print("\n" + "=" * 88)
-    print("\nAND ONE THING THAT IS *NOT* A BOUNDARY\n")
-    print("  A Genie space has a curated table list. It is NOT a security boundary.")
+    print("\nAND ONE THING THAT IS *NOT* A SECURITY CONTROL\n")
+    print("  Which tables you add to a Genie space is NOT a security control.")
     print()
-    print("  We asked four times, two identities, for a table deliberately left off the list.")
+    print("  We asked four times, two identities, for a table we deliberately did not add.")
     print("  All four refused, generating no SQL at all. That looks like enforcement. It is not.")
     print("  It is the model declining to name a table it was never shown, and a model update")
-    print("  can change it without a release note. The Databricks documentation does not promise")
-    print("  the list limits what Genie can reach.")
+    print("  can change it without a release note. Databricks does not document it as a limit")
+    print("  on what Genie can reach.")
     print()
-    print("  Rely on Unity Catalog grants. Never on the curated list.")
+    print("  Rely on Unity Catalog grants. Never on which tables you added.")
     print()
     return 0
 

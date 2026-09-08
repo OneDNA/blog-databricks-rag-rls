@@ -255,11 +255,11 @@ page. Border colour marks who enforces.
 ![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
 
 ## Two things that surprised us
-**A Genie space's curated table list is not a security control.** We asked four times, across two
-identities, for a table deliberately left off the list, and Genie refused every time and generated
-no SQL. That looks like enforcement, but it is the model declining to name a table it was never
-shown, and a model update can change it without a release note. The Databricks documentation does
-not promise the list limits what Genie can reach. Rely on Unity Catalog grants instead.
+**Which tables you add to a Genie space is not a security control.** We asked four times, across
+two identities, for a table we had deliberately not added, and Genie refused every time and
+generated no SQL. That looks like enforcement, but it is the model declining to name a table it was
+never shown, and a model update can change it without a release note. Databricks does not document
+it as a limit on what Genie can reach. Rely on Unity Catalog grants instead.
 
 **A documented configuration path overrules on-behalf-of and takes the SP identity.** Granting a
 service principal access to a Genie space also requires granting its underlying tables and
@@ -303,12 +303,12 @@ control you have not tested.
 > [!NOTE]
 > **There is another way to do this.** Serve the vectors from pgvector on Lakebase instead of AI
 > Search, and the ACL goes back to being a row-level security policy the database evaluates, so
-> Postgres applies the filter rather than your retrieval code. It is not a like-for-like swap:
-> AI Search is built for large-scale serving and will carry billions of vectors, where pgvector on
-> Lakebase is not sized for the same workloads. And it does not escape the same class of mistake —
-> our `sensitivity` filter once named a column no stage produced, and on
-> pgvector that is a hard "column does not exist", as it now is on AI Search. The filter is equally
-> broken on either one, and on both you get an error rather than silence.
+> Postgres applies the filter rather than your retrieval code. It is not a like-for-like swap: a
+> storage-optimized AI Search endpoint is documented to a billion embeddings, where pgvector on
+> Lakebase is not sized for that. And it does not escape the same class of mistake — our
+> `sensitivity` filter once named a column no stage produced, and on pgvector that is a hard
+> "column does not exist", as it now is on AI Search. The filter is equally broken on either one,
+> and on both you get an error rather than silence.
 
 ---
 
