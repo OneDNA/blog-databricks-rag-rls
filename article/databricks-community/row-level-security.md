@@ -168,14 +168,15 @@ have, because they are not the one answering the question.
 Four decisions shaped that flow:
 
 - **Empty means nothing, not everything.** A caller with no mapped groups retrieves nothing, and a
-deployment where nobody configured the mapping serves nothing to everybody.
+  deployment where nobody configured the mapping serves nothing to everybody.
 - **A malformed configuration raises.** A mapping that will not parse stops the request rather than
   resolving to empty, so the two states are told apart.
 - **An unentitled caller never reaches the call to the index.** They get an explicit denial, rather
   than an answer assembled from the model's general knowledge.
 - **Where entitlements come from is a scale decision.** A naming convention works and needs no
-configuration at all. Once a caller's access is a combination of columns — e.g. a source system
-*and* a site *and* a sensitivity — the name has to encode a tuple, and a declared grants table is needed.
+  configuration at all. Once a caller's access is a combination of columns — e.g. a source system
+  *and* a site *and* a sensitivity — the name has to encode a tuple, and a declared grants table
+  is needed.
 
 Each has an alternative that grants access instead of refusing it, and each of those is a one-line
 change. A 401 from SCIM is a routine event — an expired token — so what your error path returns
