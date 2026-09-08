@@ -45,9 +45,9 @@ RETURN is_account_group_member('group-water-delta') AND project_group = 'water-d
 ALTER TABLE project_hours SET ROW FILTER project_group_filter ON (project_group);
 ```
 
-We confirmed it resolves against the caller and not the table owner, then tested it: replacing the
-body with `RETURN project_group = 'NON_EXISTING_GROUP'` — a group no row has — has to return
-nothing to everybody, and it did. Restoring the original brought the rows back. A filter that is
+It resolves against the caller and not the table owner. You can check that by replacing the body
+with `RETURN project_group = 'NON_EXISTING_GROUP'` — a group no row has, so a working filter
+returns nothing to everybody. Restoring the original brings the rows back. A filter that is
 attached is not necessarily a filter that runs. `DESCRIBE TABLE EXTENDED` tells you it exists;
 changing it tells you it works.
 
@@ -99,8 +99,8 @@ chunk body does.
 > filters are not present in index`. Assert every filter's keys against the columns the index
 > actually has anyway, and raise rather than warn: this behaviour moved once without a release
 > note, and a query-time refusal is a 500 to your caller where the assertion is a clean
-> `PermissionError`. Verify which behaviour your own index has —
-> [`01_index_has_no_rls.py --live`](../../examples/01_index_has_no_rls.py) reports every outcome.
+> `PermissionError`. To check what your own index does, query it with a filter naming a column that
+> does not exist and see whether you get rows, zero rows or an error.
 
 ## Building the ACL: four decisions
 
@@ -219,8 +219,8 @@ What differs is who enforces. On the prose branch it is our declared grants, so 
 a passage is "one of your groups allowed it". On the data branch it is Unity Catalog, so the reason
 is "Unity Catalog checked you", with the generated SQL and a statement id as evidence.
 
-We tested whether the caller's identity holds across the hops into Genie, and it does on every path
-we could construct. Query history attributes the statement to the human on the interactive path,
+The caller's identity holds across the hops into Genie, on every path we could construct, and
+query history is where you check it. It attributes the statement to the human on the interactive path,
 through the agent under OBO, and from an external front end — which adds a third hop through Entra
 and the token exchange. In each case `executed_as_user_name` names the person, not the endpoint's
 service principal.
@@ -263,15 +263,17 @@ has and check it returns nothing. Revoke the grant and check the answer disappea
 group to one nobody is in and check the row count goes to zero. A control you have only seen
 succeed is a control you have not tested.
 
-Row-level security over a RAG agent is a series of small design decisions that all have to work
-together smoothly, rather than a feature you switch on. Take time to map out how you want your agent
-to behave at every step. And build thorough validations into your testing cycle.
+Row-level security over a RAG agent is a series of small design decisions that have to work
+together, not a feature you switch on. Map out what you expect at every step, and build the checks
+that would catch each of these failures into your test cycle.
 
 ---
 
 The [long version](../row-level-security.md) has the measurements, the OBO token-hop table, the
-Unity Catalog design questions we worked through, and the platform features still in preview. The
-[`examples/`](../../examples/) directory has runnable demonstrations of each failure above.
+Unity Catalog design questions we worked through, and the platform features still in preview. You
+can test this out yourself by looking at the
+[demo repo](https://github.com/OneDNA/blog-databricks-rag-rls), which has a runnable demonstration
+of each failure above.
 
 ## Curious how other teams handle access control on AI applications?
 

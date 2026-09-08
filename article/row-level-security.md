@@ -52,7 +52,7 @@ the access decision now happens in code you wrote on the serve side, against met
 chose on the build side.
 
 ## Row-level security on tables
-On regular tables, we can implement row level security easily.
+On regular tables, we can implement row-level security easily.
 Take the project data at a firm like the one above: hours, budgets, planning, all in tables, and
 each project team allowed to see only its own. Unity Catalog handles that case well. You attach a
 row filter and a column mask to a table, and every reader gets their own view of it. The filter is
@@ -66,17 +66,18 @@ RETURN is_account_group_member('group-water-delta') AND project_group = 'water-d
 ALTER TABLE project_hours SET ROW FILTER project_group_filter ON (project_group);
 ```
 
-We wanted to confirm that it resolves against the caller and not the table owner. Two principals
-ran the same query against the same table. The one in the admitted group saw all seven rows with
-the budget column in the clear; the one in no admitted group saw nothing, and the masked column
-came back as `NULL` on rows it could reach elsewhere.
+It resolves against the caller and not the table owner. Two principals running the same query
+against the same table see different results: the one in the admitted group gets all seven rows
+with the budget column in the clear, and the one in no admitted group gets nothing, with the masked
+column coming back as `NULL` on rows it can reach elsewhere.
 
-We then tested it: replaced the filter body with `RETURN project_group = 'NON_EXISTING_GROUP'`, a
-group no row has, so a working filter has to return nothing to everybody. It did, and restoring
-the original brought the seven back. A filter that is attached is not necessarily a filter that
-runs. `DESCRIBE TABLE EXTENDED` tells you it exists; changing it tells you it works.
+You can check the filter actually runs by replacing its body with
+`RETURN project_group = 'NON_EXISTING_GROUP'`, a group no row has, so a working filter returns
+nothing to everybody. Restoring the original brings the seven back. A filter that is attached is
+not necessarily a filter that runs: `DESCRIBE TABLE EXTENDED` tells you it exists, changing it
+tells you it works.
 
-Individual filters attached to every table do not scale well, if your data platform contains
+Individual filters attached to every table do not scale well if your data platform contains
 thousands of tables. Attribute-based access control went generally available in April 2026 and fixes
 that: you tag the data and attach a policy to a catalog or a schema, and every object with that
 tag is covered, including tables created next month by somebody who does not know the policy exists.
@@ -174,17 +175,16 @@ only holds on one backend, or on one month's behaviour, is not much of a rule.
 > BadRequest: Columns referenced in filters are not present in index: sensitivty
 > ```
 >
-> The predicate is refused rather than dropped, which is the platform validating filter keys
-> against the index contract — the job the guard above does by hand. Measured on one AWS
-> workspace, `STANDARD` endpoint, `HYBRID` index subtype, so verify which behaviour your own
-> index has: [`01_index_has_no_rls.py --live`](../examples/01_index_has_no_rls.py) reports every
-> outcome.
+> The predicate is refused rather than dropped: the platform validates filter keys against the
+> index contract, which is the job the guard above does by hand. To check what your own index does,
+> query it with a filter naming a column that does not exist and see whether you get rows, zero rows
+> or an error.
 >
 > Keep the guard anyway, for three reasons, and the first is the important one:
 >
 > 1. **This behaviour moved once already, without a release note.** It moved toward safety, but a
->    rule whose correctness depends on which way the platform last moved is not a rule — the same
->    argument this section makes about pgvector, with the platform itself as the example.
+>    rule whose correctness depends on which way the platform last moved is not a rule, whether
+>    the thing that moved is a second backend or the platform itself.
 > 2. **A synced-but-absent column is a different case.** The probe above tests a column that
 >    exists *nowhere*. One that exists in the source table but was never synced into the index
 >    need not refuse as loudly, and that is the likelier mistake.
@@ -251,9 +251,9 @@ Four decisions in that layer shaped the rest:
 > - **Answering from general knowledge** reads exactly like a successful retrieval.
 > - **Parsing a group's name loosely** hands access to anyone who can create a group.
 
-That last one is not hypothetical. Measured against real workspace groups, a rule that read an
-entitlement out of any group whose name contained a known token turned an administration group into
-a claim on a source system. A naming convention is a fine mechanism, but it has to be an exact match
+That last one is not hypothetical. Against real workspace groups, a rule that read an entitlement
+out of any group whose name contained a known token turned an administration group into a claim on
+a source system. A naming convention is a fine mechanism, but it has to be an exact match
 against names only your identity process can mint — never a substring test.
 
 
@@ -414,15 +414,14 @@ enforces. The other is qualitative and routes to the index, where our own filter
 ![Same question, two callers](../diagrams/rendered/chat-response.png)
 
 Both of David's answers are empty, and while the answers look identical, they are slightly different
-in mechanism. On the Genie path the platform decided. On the index path our filter decided — and had
-we passed no filter, or one naming
-a column the index does not have, he would have received Water Delta chunks with no error and no
+in mechanism. On the Genie path the platform decided. On the index path our filter decided — and
+had we passed no filter at all, he would have received Water Delta chunks with no error and no
 warning. `obo_active` reads `true` in all four metadata boxes, and that flag is what makes either
 zero readable.
 
-None of that is worth much on the strength of a code review, so we measured it. A controlled
-experiment against the deployed endpoint: same user, same question, same registered model version,
-with the group-to-entitlement mapping as the only variable. Mapped to the caller's real group,
+A code review will not tell you whether that holds, so we ran it against the deployed endpoint:
+same user, same question, same registered model version, with the group-to-entitlement mapping as
+the only variable. Mapped to the caller's real group,
 retrieval returned five rows and a grounded answer citing the corpus. Mapped to a group nobody
 is in, it returned zero rows and an explained denial, and the model was never called.
 
@@ -482,8 +481,8 @@ declared grants table, so the reason you got a passage is "one of your groups al
 data branch it is Unity Catalog, so the reason is "Unity Catalog checked you", with the generated
 SQL and a statement id as evidence.
 
-We tested whether the caller's identity holds across the hops into Genie, and it does on every path
-we could construct. Query history attributes the statement to the human on the interactive path,
+The caller's identity holds across the hops into Genie, on every path we could construct, and
+query history is where you check it. It attributes the statement to the human on the interactive path,
 through the agent under OBO, and from an external front end — which adds a third hop through Entra
 and the token exchange. In each case `executed_as_user_name` names the person, not the serving
 endpoint's service principal.
@@ -545,14 +544,14 @@ restricts. The other way round, every user your SCIM sync has not populated sees
 
 There is a third option, and it is available today rather than in Beta: serve the vectors from
 pgvector on Lakebase instead of AI Search. The ACL then goes back to being a row-level security
-policy that the database evaluates, which puts enforcement back on the platform side of the line
-this article has been drawing. For us that is a governance argument rather than a latency one.
+policy that the database evaluates, which puts enforcement back on the platform side of the
+governance boundary. For us that is a governance argument rather than a latency one.
 
 It does not escape the same class of mistake. Our `sensitivity` filter named a column no stage ever
-produced, and on pgvector that is a hard "column does not exist" rather than a silent pass. Both
-backends give notice today, and the filter is equally broken on both — what changes is that you
-find out. AI Search reached that behaviour by moving, in the safe direction, without telling
-anyone. That is the argument for owning the check, not evidence that you can stop.
+produced, and on pgvector that is a hard "column does not exist". Both backends refuse it today and
+the filter is equally broken on both — what you get either way is notice. AI Search only reached
+that behaviour by moving, in the safe direction, without telling anyone. That is the argument for
+owning the check, not evidence that you can stop.
 
 ## Recommendations
 
@@ -581,32 +580,21 @@ has and check it returns nothing. Revoke the grant and check the answer disappea
 group to one nobody is in and check the row count goes to zero. A control you have only seen
 succeed is a control you have not tested.
 
-For me the honest summary is that knowing how we wanted the system to behave was the easy part.
-Making it behave that way, and verifying when it did not, was hard. The mechanisms are no easier:
-Unity Catalog resolves per caller, OBO propagates through three hops including an external front
-end, and filters apply — but each of those took work to get right, and more work to prove. What we
-measured is that they were still working when we looked.
+## Try it yourself
 
-## Runnable examples
-
-The [`examples/`](../examples/) directory has runnable demonstrations of each failure described above,
-and [`diagrams/`](../diagrams/) holds the architecture as editable draw.io sources.
-
-| Example | Demonstrates |
-| --- | --- |
-| [`01_index_has_no_rls.py`](../examples/01_index_has_no_rls.py) | what happens when a filter names a column the index lacks |
-| [`02_assert_enforceable.py`](../examples/02_assert_enforceable.py) | the guard, and the test that catches what it prevents |
-| [`03_acl_from_groups.py`](../examples/03_acl_from_groups.py) | SCIM groups to entitlements, denying on error |
-| [`04_obo_three_ways.py`](../examples/04_obo_three_ways.py) | the three credential providers side by side |
-| [`05_genie_per_caller.py`](../examples/05_genie_per_caller.py) | the governed-table contrast |
-| [`sql/row_filter_fixture.sql`](../examples/sql/row_filter_fixture.sql) | a reproducible RLS fixture with its negative tests |
+You can test this out yourself by looking at the [demo repo](https://github.com/OneDNA/blog-databricks-rag-rls).
+It has a runnable demonstration of each failure described above — the filter that names a column the
+index lacks, the guard that refuses it, SCIM groups resolving to entitlements, the credential
+providers side by side, the governed-table contrast, and a reproducible row-filter fixture with its
+negative cases — plus the diagrams as editable draw.io sources.
 
 ## In closing
 
-Row-level security over a RAG agent is a series of small design decisions that all have to work
-together smoothly, rather than a feature you switch on. Unity Catalog does its part per caller and OBO
-brings the identity through three hops. Take time to map out how you want your agent to behave at
-every step. And build thorough validations into your testing cycle.
+Row-level security over a RAG agent is a series of small design decisions that have to work
+together, not a feature you switch on. Unity Catalog resolves per caller and OBO carries the
+identity through three hops, but knowing how you want the system to behave is the easy part —
+making it behave that way, and knowing when it does not, is the work. Map out what you expect at
+every step, and build the checks that would catch each of these failures into your test cycle.
 
 ## Curious how other teams handle access control on AI applications?
 

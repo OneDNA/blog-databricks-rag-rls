@@ -69,18 +69,18 @@ RETURN is_account_group_member('group-water-delta') AND project_group = 'water-d
 ALTER TABLE project_hours SET ROW FILTER project_group_filter ON (project_group);
 ```
 
-We wilden zeker weten dat het naar de aanroeper kijkt en niet naar de tabeleigenaar. Twee
-principals draaiden dezelfde query tegen dezelfde tabel. Degene in de toegelaten groep zag alle
-zeven rijen met de budgetkolom gewoon zichtbaar; degene in geen enkele toegelaten groep zag niets,
-en de gemaskeerde kolom kwam als `NULL` terug op de rijen die hij elders wel kon bereiken.
+Het kijkt naar de aanroeper en niet naar de tabeleigenaar. Twee principals die dezelfde query tegen
+dezelfde tabel draaien, zien iets anders: degene in de toegelaten groep krijgt alle zeven rijen met
+de budgetkolom gewoon zichtbaar, en degene in geen enkele toegelaten groep krijgt niets, waarbij de
+gemaskeerde kolom als `NULL` terugkomt op de rijen die hij elders wel kan bereiken.
 
-Daarna hebben we het getest: de filterbody vervangen door
+Of het filter echt draait, kun je nagaan door de body te vervangen door
 `RETURN project_group = 'NON_EXISTING_GROUP'`, een groep die geen enkele rij heeft, dus een werkend
-filter moet iedereen niets teruggeven. Dat deed het, en met het origineel terug kwamen de zeven
-rijen weer. Een filter dat eraan hangt, is niet per se een filter dat draait. `DESCRIBE TABLE
-EXTENDED` vertelt je dát het bestaat; het veranderen vertelt je dat het wérkt.
+filter geeft iedereen niets terug. Met het origineel terug komen de zeven rijen weer. Een filter dat
+eraan hangt, is niet per se een filter dat draait: `DESCRIBE TABLE EXTENDED` vertelt je dát het
+bestaat, het veranderen vertelt je dat het wérkt.
 
-Losse filters aan elke tabel hangen schaalt niet goed, als je dataplatform duizenden tabellen bevat.
+Losse filters aan elke tabel hangen schaalt niet goed als je dataplatform duizenden tabellen bevat.
 Attribute-based access control is sinds april 2026 GA en lost dat op: je tagt de data en hangt een
 policy aan een catalog of schema, waarna elk object met die tag eronder valt, inclusief tabellen die
 volgende maand worden aangemaakt door iemand die niet weet dat de policy bestaat.
@@ -184,17 +184,15 @@ regel.
 > ```
 >
 > Het predicaat wordt geweigerd in plaats van weggelaten: het platform toetst filtersleutels tegen
-> het indexcontract — precies wat de guard hierboven met de hand doet. Gemeten op één
-> AWS-workspace, `STANDARD`-endpoint, `HYBRID`-indexsubtype, dus meet zelf welk gedrag jouw index
-> heeft: [`01_index_has_no_rls.py --live`](../examples/01_index_has_no_rls.py) rapporteert elke
-> uitkomst.
+> het indexcontract, precies wat de guard hierboven met de hand doet. Wat jouw index doet, kun je
+> nagaan door hem te bevragen met een filter op een kolom die niet bestaat, en te kijken of je rijen,
+> nul rijen of een error terugkrijgt.
 >
 > Houd de guard toch, om drie redenen, waarvan de eerste de belangrijkste is:
 >
 > 1. **Dit gedrag bewoog al een keer, zonder release note.** Richting veiligheid, maar een regel
->    waarvan de juistheid afhangt van welke kant het platform het laatst op bewoog, is geen regel —
->    precies het argument dat deze paragraaf over pgvector maakt, nu met het platform zelf als
->    voorbeeld.
+>    waarvan de juistheid afhangt van welke kant het platform het laatst op bewoog, is geen regel,
+>    of het bewegende nu een tweede backend is of het platform zelf.
 > 2. **Een kolom die wél bestaat maar niet gesynct is, is een ander geval.** De probe hierboven
 >    test een kolom die *nergens* bestaat. Een kolom die in de brontabel staat maar nooit de index
 >    in ging, hoeft niet zo hard te weigeren — en dat is de waarschijnlijkere fout.
@@ -263,9 +261,9 @@ Vier beslissingen in die laag bepaalden de rest:
 > - **Antwoorden uit algemene kennis** leest precies als een geslaagde retrieval.
 > - **Een groepsnaam los interpreteren** geeft toegang weg aan iedereen die een groep mag aanmaken.
 
-Die laatste is niet hypothetisch. Gemeten tegen echte workspace-groepen maakte een regel die een
-recht uitlas uit elke groep waarvan de naam een bekend woord bevatte, van een beheergroep een claim
-op een bronsysteem. Een naamconventie is een prima mechanisme, maar het moet een exacte match zijn
+Die laatste is niet hypothetisch. Tegen echte workspace-groepen maakte een regel die een recht
+uitlas uit elke groep waarvan de naam een bekend woord bevatte, van een beheergroep een claim op een
+bronsysteem. Een naamconventie is een prima mechanisme, maar het moet een exacte match zijn
 op namen die alleen jouw identiteitsproces kan uitgeven — nooit een substring-test.
 
 
@@ -437,14 +435,13 @@ Catalog handhaaft. De andere is kwalitatief en gaat naar de index, waar ons eige
 
 Beide antwoorden van David zijn leeg, en hoewel de antwoorden er hetzelfde uitzien, verschillen ze
 licht in mechanisme. Op het Genie-pad heeft het platform beslist. Op het indexpad heeft ons filter
-beslist — en hadden we geen filter meegegeven,
-of een filter dat een kolom noemt die de index niet heeft, dan had hij Water Delta-chunks gekregen
+beslist — en hadden we helemaal geen filter meegegeven, dan had hij Water Delta-chunks gekregen
 zonder error en zonder waarschuwing. `obo_active` staat in alle vier de metadataboxen op `true`, en
 dat is wat beide nullen leesbaar maakt.
 
-Op basis van een code review is dit allemaal weinig waard, dus hebben we het gemeten. Een
-gecontroleerd experiment tegen het gedeployde endpoint: dezelfde gebruiker, dezelfde vraag, dezelfde
-geregistreerde modelversie, met de groep-naar-recht-mapping als enige variabele. Gemapt op de echte
+Een code review vertelt je niet of dat standhoudt, dus hebben we het tegen het gedeployde endpoint
+gedraaid: dezelfde gebruiker, dezelfde vraag, dezelfde geregistreerde modelversie, met de
+groep-naar-recht-mapping als enige variabele. Gemapt op de echte
 groep van de aanroeper gaf retrieval vijf rijen en een onderbouwd antwoord met verwijzing naar het
 corpus. Gemapt op een groep waar niemand in zit, gaf het nul rijen en een uitgelegde weigering, en
 werd het model nooit aangeroepen.
@@ -506,8 +503,8 @@ grants-tabel, en de reden dat je een passage krijgt is daar "een van jouw groepe
 de datatak is het Unity Catalog zelf, en de reden is "Unity Catalog heeft jou gecontroleerd", met de
 gegenereerde SQL en een statement-id als bewijs.
 
-We hebben getest of de identiteit van de aanroeper standhoudt over de hops naar Genie, en dat doet
-hij op elk pad dat we konden bouwen. Query history schrijft het statement toe aan de mens op het
+De identiteit van de aanroeper houdt stand over de hops naar Genie, op elk pad dat we konden
+bouwen, en in query history kun je dat nagaan. Die schrijft het statement toe aan de mens op het
 interactieve pad, via de agent onder OBO, en vanuit een externe front end — dat een derde hop
 toevoegt via Entra en de token-exchange. In alle gevallen noemt `executed_as_user_name` de persoon,
 niet de service principal van het serving endpoint.
@@ -548,7 +545,7 @@ Identity attributes laten een policy de attributen van de aanroeper rechtstreeks
 via groepslidmaatschap. Account-SCIM provisioneert `title`, `department` en `costCenter` vanuit je
 identity provider, en een policy kan de afdeling van de aanroeper vergelijken met een tag op de
 tabel, wat één policy per afdeling terugbrengt tot één policy. De polariteit van de conditie vraagt
-aandacht. De identity-functies geven `false` terug zowel als de gebruiker geen waarde voor het
+aandacht. De identity-functies geven `false` terug zowel wanneer de gebruiker geen waarde voor het
 attribuut heeft als wanneer de sleutel niet bestaat, dus de conditie moet zó geschreven zijn dat
 `false` beperkt. Andersom geschreven ziet elke gebruiker die je SCIM-sync niet heeft gevuld de data
 ongemaskeerd, en wordt een gat in je provisioning een toegangsrecht.
@@ -567,21 +564,16 @@ Een personal access token zet hem ook niet, en de ingebouwde `databricks-cli` cl
 dus een agent die hem gebruikt is niet te onderscheiden van een mens achter een terminal. Registreer
 je eigen OAuth-applicatie als je een specifieke wilt governen.
 
-Let bij identity attributes op de polariteit van de conditie. De functies geven `false` terug zowel
-als de gebruiker geen waarde heeft als wanneer de sleutel niet bestaat, dus schrijf de conditie zó
-dat `false` beperkt. Andersom ziet elke gebruiker die je SCIM-sync niet heeft gevuld de data
-ongemaskeerd.
-
 Er is een derde optie, en die is vandaag al beschikbaar in plaats van Beta: serveer de vectoren uit
 pgvector op Lakebase in plaats van uit AI Search. De ACL wordt dan weer een row-level
 security-policy die de database evalueert, waarmee de handhaving terugkomt aan de platformkant van
-de grens die dit artikel steeds trekt. Voor ons is dat een governance-argument en geen
+de governance-grens. Voor ons is dat een governance-argument en geen
 latency-argument.
 
 Diezelfde klasse fouten verdwijnt er niet mee. Ons `sensitivity`-filter noemde een kolom die geen
-enkele stap ooit produceerde, en op pgvector is dat een harde "kolom bestaat niet" in plaats van
-een stille doorlaat. Beide backends geven vandaag een signaal, en het filter is op beide even
-kapot — wat verandert, is dat je het merkt. AI Search kwam daar door te bewegen, de veilige kant
+enkele stap ooit produceerde, en op pgvector is dat een harde "kolom bestaat niet". Beide backends
+weigeren het vandaag en het filter is op beide even kapot — wat je in beide gevallen krijgt, is een
+signaal. AI Search kwam daar door te bewegen, de veilige kant
 op, zonder het te melden. Dat is het argument om de check zelf te bezitten, geen bewijs dat je
 ermee kunt stoppen.
 
@@ -612,34 +604,23 @@ die geen enkele rij heeft en controleer of het niets oplevert. Trek de grant in 
 het antwoord verdwijnt. Zet de groep op eentje waar niemand in zit en controleer of het rijaantal
 naar nul gaat. Een control die je alleen hebt zien slagen, is een control die je niet hebt getest.
 
-Voor mij is de eerlijke samenvatting dat wéten hoe we wilden dat het systeem zich gedroeg het
-makkelijke deel was. Het zich zo laten gedragen, en kunnen vaststellen wanneer dat niet zo was, was
-het moeilijke deel. De mechanismen zijn niet eenvoudiger: Unity Catalog evalueert per aanroeper, OBO
-propageert door drie hops inclusief een externe front end, en filters worden toegepast — maar elk
-daarvan kostte
-werk om goed te krijgen, en nog meer werk om te bewijzen. Wat we hebben gemeten, is dat ze nog
-steeds werkten toen we keken.
+## Zelf uitproberen
 
-## Uitvoerbare voorbeelden
-
-De map [`examples/`](../examples/) bevat uitvoerbare demonstraties van elke fout die hierboven staat,
-en [`diagrams/`](../diagrams/) bevat de architectuur als bewerkbare draw.io-bronbestanden.
-
-| Voorbeeld | Toont |
-| --- | --- |
-| [`01_index_has_no_rls.py`](../examples/01_index_has_no_rls.py) | het stille wegvallen: filter op een kolom die de index niet heeft |
-| [`02_assert_enforceable.py`](../examples/02_assert_enforceable.py) | de guard, en de test die vangt wat hij voorkomt |
-| [`03_acl_from_groups.py`](../examples/03_acl_from_groups.py) | SCIM-groepen naar rechten, weigerend bij fouten |
-| [`04_obo_three_ways.py`](../examples/04_obo_three_ways.py) | de drie credential providers naast elkaar |
-| [`05_genie_per_caller.py`](../examples/05_genie_per_caller.py) | het contrast met de beheerde tabel |
-| [`sql/row_filter_fixture.sql`](../examples/sql/row_filter_fixture.sql) | een reproduceerbare RLS-fixture met zijn negatieve tests |
+Je kunt dit zelf uitproberen via de [demo-repo](https://github.com/OneDNA/blog-databricks-rag-rls).
+Daarin staat een uitvoerbare demonstratie van elke fout die hierboven staat — het filter dat een
+kolom noemt die de index niet heeft, de guard die dat weigert, SCIM-groepen die naar rechten worden
+opgelost, de credential providers naast elkaar, het contrast met de beheerde tabel, en een
+reproduceerbare row-filter-fixture met zijn negatieve gevallen — plus de diagrammen als bewerkbare
+draw.io-bronbestanden.
 
 ## Tot slot
 
-Row-level security over een RAG-agent is een reeks kleine ontwerpbeslissingen die allemaal soepel
-samen moeten werken, en geen feature die je aanzet. Unity Catalog doet zijn deel per
-aanroeper en OBO brengt de identiteit door drie hops heen. Neem de tijd om uit te tekenen hoe je
-wilt dat je agent zich bij elke stap gedraagt. En bouw grondige validaties in je testcyclus.
+Row-level security over een RAG-agent is een reeks kleine ontwerpbeslissingen die samen moeten
+werken, geen feature die je aanzet. Unity Catalog evalueert per aanroeper en OBO brengt de
+identiteit door drie hops heen, maar wéten hoe je wilt dat het systeem zich gedraagt is het
+makkelijke deel — het zich zo laten gedragen, en merken wanneer dat niet zo is, is het werk. Teken
+uit wat je bij elke stap verwacht, en bouw de checks die elk van deze fouten zouden vangen in je
+testcyclus.
 
 ## Benieuwd hoe andere teams toegangscontrole op AI-toepassingen aanpakken?
 

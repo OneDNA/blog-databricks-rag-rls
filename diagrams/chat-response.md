@@ -46,12 +46,11 @@ Both of David's answers come back empty, and from outside they look identical. T
   and returned no Water Delta rows. The platform decided, and it would have decided the same way
   for any caller on any client.
 - **On the AI Search path**, his entitlement resolved to Coastal North and the filter went out
-  scoped to it. The index has no row filter of its own; had our code passed no filter, or a filter
-  naming a column the index does not have, he would have received Water Delta chunks with no
-  error and no warning.
+  scoped to it. The index has no row filter of its own; had our code passed no filter at all, he
+  would have received Water Delta chunks with no error and no warning.
 
 > [!NOTE]
-> `obo_active: true` in every metadata box is what makes either zero readable. Without it, a zero
+> `obo_active: true` in every metadata box makes either zero readable. Without it, a zero
 > could mean "correctly filtered" or "identity broken" — and the two are indistinguishable from
 > the answer alone. Assert on the identity that produced the result, not on whether a result
 > arrived.

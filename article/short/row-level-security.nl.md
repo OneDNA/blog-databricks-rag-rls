@@ -47,11 +47,11 @@ RETURN is_account_group_member('group-water-delta') AND project_group = 'water-d
 ALTER TABLE project_hours SET ROW FILTER project_group_filter ON (project_group);
 ```
 
-We hebben bevestigd dat het naar de aanroeper kijkt en niet naar de tabeleigenaar, en het daarna
-getest: de body vervangen door `RETURN project_group = 'NON_EXISTING_GROUP'` — een groep die geen
-enkele rij heeft — moet iedereen niets teruggeven, en dat deed het. Met het origineel terug kwamen
-de rijen weer. Een filter dat eraan hangt, is niet per se een filter dat draait. `DESCRIBE TABLE
-EXTENDED` vertelt je dát het bestaat; het veranderen vertelt je dat het wérkt.
+Het kijkt naar de aanroeper en niet naar de tabeleigenaar. Je kunt dat nagaan door de body te
+vervangen door `RETURN project_group = 'NON_EXISTING_GROUP'` — een groep die geen enkele rij heeft,
+dus een werkend filter geeft iedereen niets terug. Met het origineel terug komen de rijen weer. Een
+filter dat eraan hangt, is niet per se een filter dat draait. `DESCRIBE TABLE EXTENDED` vertelt je
+dát het bestaat; het veranderen vertelt je dat het wérkt.
 
 Op een beheerde tabel stapelen vier mechanismen, en het helpt om te weten welke vraag elk ervan
 beantwoordt:
@@ -104,8 +104,9 @@ niet alleen vóór de chunktekst.
 > referenced in filters are not present in index`. Toets elke filtersleutel toch aan de kolommen
 > die de index echt heeft, en gooi een error in plaats van een waarschuwing: dit gedrag is één keer
 > verschoven zonder release note, en een weigering tijdens de query is een 500 voor je aanroeper
-> waar de toets een nette `PermissionError` geeft. Meet welk gedrag jouw index heeft —
-> [`01_index_has_no_rls.py --live`](../../examples/01_index_has_no_rls.py) rapporteert elke uitkomst.
+> waar de toets een nette `PermissionError` geeft. Wat jouw index doet, kun je nagaan door hem te
+> bevragen met een filter op een kolom die niet bestaat, en te kijken of je rijen, nul rijen of een
+> error terugkrijgt.
 
 ## De ACL bouwen: vier beslissingen
 
@@ -139,7 +140,8 @@ een fout doet, bepaalt wat een fout verleent. Wij geven niets terug.
 
 - **Leeg betekent niets, niet alles.** Een aanroeper zonder gemapte groepen haalt niets op, en een
   deployment waar niemand de mapping heeft ingevuld serveert niets aan iedereen.
-- **Een kapotte configuratie raist.** Een mapping die niet parset stopt het request in plaats van
+- **Een kapotte configuratie gooit een error.** Een mapping die niet parseert stopt het request in
+  plaats van
   naar leeg te degraderen, zodat de twee toestanden uit elkaar te houden zijn.
 - **Een aanroeper zonder rechten bereikt de aanroep naar de index nooit.** Die krijgt een expliciete
   weigering, en geen antwoord dat uit de algemene kennis van het model is samengesteld.
@@ -150,13 +152,13 @@ een fout doet, bepaalt wat een fout verleent. Wij geven niets terug.
 Van elk daarvan bestaat een alternatief dat toegang geeft in plaats van weigert. Een permissieve
 default serveert het hele corpus zodra iemand een variabele vergeet. Een kapotte mapping die naar
 leeg degradeert lijkt precies op een terecht lege. Een groepsnaam los interpreteren geeft toegang
-weg aan iedereen die een groep mag aanmaken — gemeten tegen echte workspace-groepen maakte dat van
-een beheergroep een claim op een bronsysteem.
+weg aan iedereen die een groep mag aanmaken: tegen echte workspace-groepen maakte dat van een
+beheergroep een claim op een bronsysteem.
 
 Twee gewoonten kwamen uit het twee keer bouwen hiervan. Merge het rechtenfilter van de aanroeper
 óver eventuele filters die de aanroeper zelf meegeeft in plaats van eronder, en wikkel een
 meegegeven boolean in een `and`; anders kan een aanroeper zijn eigen ACL verbreden door een filter
-mee te geven, en ziet het gelukkige pad er in beide gevallen hetzelfde uit. Houd het token in de
+mee te geven, en ziet het happy path er in beide gevallen hetzelfde uit. Houd het token in de
 `Authorization`-header en niet in de request body, zodat niets dat payloads logt hem kan opvangen,
 inference tables inbegrepen.
 
@@ -227,8 +229,8 @@ een passage krijgt is "een van jouw groepen liet hem toe". Op de datatak is het 
 reden is "Unity Catalog heeft jou gecontroleerd", met de gegenereerde SQL en een statement-id als
 bewijs.
 
-We hebben getest of de identiteit van de aanroeper standhoudt over de hops naar Genie, en dat doet
-hij op elk pad dat we konden bouwen. Query history schrijft het statement toe aan de mens op het
+De identiteit van de aanroeper houdt stand over de hops naar Genie, op elk pad dat we konden
+bouwen, en in query history kun je dat nagaan. Die schrijft het statement toe aan de mens op het
 interactieve pad, via de agent onder OBO, en vanuit een externe front end — dat een derde hop
 toevoegt via Entra en
 de token-exchange. In elk geval noemt `executed_as_user_name` de persoon, en niet de service
@@ -247,10 +249,20 @@ die grants niet nodig; voeg ze niet toe.
 
 ## Aanbevelingen
 
-Begrijp waar toegangscontrole moet worden afgedwongen, en wie daarvan is. Een beheerde tabel wordt
-door het platform gehandhaafd; een vectorindex door wie de retrievalcode schrijft. Dat splitst het
-werk tussen de indexbouwer, die de ACL-kolommen erin moet zetten, en de agentontwikkelaar, die erop
-moet filteren.
+**Begrijp waar toegangscontrole moet worden afgedwongen, en wie daarvan is.** Een beheerde tabel
+wordt door het platform gehandhaafd; een vectorindex door wie de retrievalcode schrijft. Dat splitst
+het werk tussen de indexbouwer, die de ACL-kolommen erin moet zetten, en de agentontwikkelaar, die
+erop moet filteren — en geen van beide helften werkt alleen.
+
+**Schrijf de ACL-kolommen weg bij het indexeren.** Je ACL kan nooit expressiever zijn dan de
+metadata die je naast de chunks hebt weggeschreven, en er later een toevoegen betekent een rebuild.
+
+**Maak je faalmodi expliciet.** "Geen recht" en "verlopen token" zijn verschillende gebeurtenissen
+die beide nul rijen opleveren, en je kunt niet repareren wat je niet kunt onderscheiden. Geef elk
+een eigen signaal, zodat nul rijen te diagnosticeren is.
+
+**Controleer de toegangsrechten op je achterliggende paden.** Op elk niet-interactief pad is de
+toegang van de SP de toegang die gebruikt wordt, wat er ook aan row-level security aanstaat.
 
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
 kolommen die je mee de index in kunt nemen:
@@ -262,15 +274,17 @@ die geen enkele rij heeft en controleer of het niets oplevert. Trek de grant in 
 het antwoord verdwijnt. Zet de groep op eentje waar niemand in zit en controleer of het aantal rijen
 naar nul gaat. Een control die je alleen hebt zien slagen, is een control die je niet hebt getest.
 
-Row-level security over een RAG-agent is een reeks kleine ontwerpbeslissingen die allemaal soepel
-samen moeten werken, en geen feature die je aanzet. Neem de tijd om uit te tekenen hoe je wilt dat je
-agent zich bij elke stap gedraagt. En bouw grondige validaties in je testcyclus.
+Row-level security over een RAG-agent is een reeks kleine ontwerpbeslissingen die samen moeten
+werken, geen feature die je aanzet. Teken uit wat je bij elke stap verwacht, en bouw de checks die
+elk van deze fouten zouden vangen in je testcyclus.
 
 ---
 
 De [lange versie](../row-level-security.nl.md) bevat de metingen, de tabel met token-hops voor OBO,
 de Unity Catalog-ontwerpvragen die we hebben uitgezocht, en de platformfeatures die nog in preview
-zijn. De map [`examples/`](../../examples/) bevat uitvoerbare demonstraties van elke fout hierboven.
+zijn. Je kunt dit zelf uitproberen via de
+[demo-repo](https://github.com/OneDNA/blog-databricks-rag-rls), met een uitvoerbare demonstratie van
+elke fout hierboven.
 
 ## Benieuwd hoe andere teams toegangscontrole op AI-toepassingen aanpakken?
 
