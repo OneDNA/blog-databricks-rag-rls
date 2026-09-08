@@ -174,25 +174,27 @@ the endpoint holds a standing grant on the data, so every caller sees the union 
 may read. Under user authorisation you do not need those grants. `SystemAuthPolicy` should declare
 only the chat model; `UserAuthPolicy` handles the rest.
 
-More generally, on any non-interactive path the service principal is the whole of your access
-control. Every human calling through that integration sees the union of what it was granted, with no
-differentiation. The platform is behaving correctly and reporting the identity it was given, which
+More generally, on any non-interactive path the SP's access is the access used. Every human calling
+through that integration sees the union of what it was granted, with no differentiation. The platform is behaving correctly and reporting the identity it was given, which
 means the review question is what the service principal is granted, whatever row-level security is
 switched on.
 
 ## What we would tell a team starting this
 
-**Know which side of the boundary you are on.** A governed table is enforced by the platform and a
-vector index is enforced by you, and those deserve different amounts of confidence.
+**Understand where access control has to be enforced, and who owns it.** A governed table is
+enforced by the platform; a vector index is enforced by whoever writes the retrieval code. That
+splits the work between the index creator, who has to put the ACL columns there, and the agent
+developer, who has to filter on them — and neither half works alone.
 
-**Write the columns at index time.** Your ACL can never be more expressive than the metadata you
-put alongside the chunks, and adding one later means a rebuild.
+**Write the ACL columns at index time.** Your ACL can never be more expressive than the metadata
+you put alongside the chunks, and adding one later means a rebuild.
 
-**Deny on error.** Make "no entitlement" and "something broke" tell themselves apart, so a zero row
-count is diagnosable.
+**Make your failure modes explicit.** "No entitlement" and "expired token" are different events
+that both return zero rows, and you cannot fix what you cannot tell apart. Give each one its own
+signal so a zero row count is diagnosable.
 
-**Check the service principal, not the feature.** On any non-interactive path the SP is the whole of
-your access control.
+**Check the access rights on your backup paths.** On any non-interactive path the SP's access is
+the access used.
 
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:

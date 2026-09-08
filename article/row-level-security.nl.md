@@ -523,7 +523,7 @@ gelden de grants van de aanroeper zelf en heeft het endpoint geen eigen staande 
 declareert `SystemAuthPolicy` alleen het chatmodel en regelt `UserAuthPolicy` de rest.
 
 > [!WARNING]
-> **Op een niet-interactief pad ís de service principal je volledige toegangscontrole.** Iedere
+> **Op een niet-interactief pad is de toegang van de SP de toegang die gebruikt wordt.** Iedere
 > mens die via die integratie belt, ziet de vereniging van waar hij recht op heeft, zonder enige
 > differentiatie. Een review van dit pad moet dus de grants van die service principal nagaan.
 
@@ -587,17 +587,20 @@ ermee kunt stoppen.
 
 ## Aanbevelingen
 
-**Weet aan welke kant van de grens je staat.** Een beheerde tabel wordt door het platform
-afgedwongen en een vectorindex door jou, en die twee verdienen niet hetzelfde vertrouwen.
+**Begrijp waar toegangscontrole moet worden afgedwongen, en wie daarvan is.** Een beheerde tabel
+wordt door het platform afgedwongen; een vectorindex door wie de retrievalcode schrijft. Dat splitst
+het werk tussen de indexbouwer, die de ACL-kolommen erin moet zetten, en de agentontwikkelaar, die
+erop moet filteren — en geen van beide helften werkt alleen.
 
-**Neem de kolommen mee bij het indexeren.** Je ACL kan nooit expressiever zijn dan de metadata die
-je naast de chunks hebt weggeschreven, en er later een toevoegen betekent een rebuild.
+**Schrijf de ACL-kolommen weg bij het indexeren.** Je ACL kan nooit expressiever zijn dan de
+metadata die je naast de chunks hebt weggeschreven, en er later een toevoegen betekent een rebuild.
 
-**Weiger bij fouten.** Zorg dat "geen recht" en "er ging iets stuk" er van buiten niet hetzelfde
-uitzien, zodat nul rijen te diagnosticeren is.
+**Maak je faalmodi expliciet.** "Geen recht" en "verlopen token" zijn verschillende gebeurtenissen
+die beide nul rijen opleveren, en je kunt niet repareren wat je niet kunt onderscheiden. Geef elk
+een eigen signaal, zodat nul rijen te diagnosticeren is.
 
-**Controleer de service principal, niet de feature.** Op elk niet-interactief pad ís de SP je
-volledige toegangscontrole, wat er ook aan row-level security aanstaat.
+**Controleer de toegangsrechten op je achterliggende paden.** Op elk niet-interactief pad is de
+toegang van de SP de toegang die gebruikt wordt, wat er ook aan row-level security aanstaat.
 
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
 kolommen die je mee de index in kunt nemen:

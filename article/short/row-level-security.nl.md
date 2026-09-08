@@ -235,9 +235,9 @@ de token-exchange. In elk geval noemt `executed_as_user_name` de persoon, en nie
 principal van het endpoint.
 
 > [!WARNING]
-> Op een niet-interactief pad ís de service principal je volledige toegangscontrole: iedere mens die
-> via die integratie belt, ziet de vereniging van waar hij recht op heeft. Een review van dit pad
-> moet dus de grants van die service principal nagaan.
+> Op een niet-interactief pad is de toegang van de SP de toegang die gebruikt wordt: iedere mens
+> die via die integratie belt, ziet de vereniging van waar hij recht op heeft. Een review van dit
+> pad moet dus de grants van die service principal nagaan.
 
 Er is een configuratieroute naar hetzelfde punt. Databricks documenteert dat een service principal
 toegang geven tot een Genie-space ook vereist dat je de onderliggende tabellen en warehouse
@@ -247,8 +247,10 @@ die grants niet nodig; voeg ze niet toe.
 
 ## Aanbevelingen
 
-Weet aan welke kant van de grens je zit. Een beheerde tabel wordt door het platform gehandhaafd en
-een vectorindex door jou, en die verdienen een verschillende mate van vertrouwen.
+Begrijp waar toegangscontrole moet worden afgedwongen, en wie daarvan is. Een beheerde tabel wordt
+door het platform gehandhaafd; een vectorindex door wie de retrievalcode schrijft. Dat splitst het
+werk tussen de indexbouwer, die de ACL-kolommen erin moet zetten, en de agentontwikkelaar, die erop
+moet filteren.
 
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
 kolommen die je mee de index in kunt nemen:

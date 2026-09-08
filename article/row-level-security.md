@@ -499,9 +499,9 @@ the endpoint needs no standing grant of its own, so `SystemAuthPolicy` declares 
 and `UserAuthPolicy` handles the rest.
 
 > [!WARNING]
-> **On a non-interactive path the service principal is the whole of your access control.** Every
-> human calling through that integration sees the union of what it was granted, with no
-> differentiation. So a review of this path has to check the service principal's grants.
+> **On a non-interactive path the SP's access is the access used.** Every human calling through
+> that integration sees the union of what it was granted, with no differentiation. So a review of
+> this path has to check the service principal's grants.
 
 There is a configuration route to the same place. Databricks documents that granting an SP access to
 a Genie space also requires granting its underlying tables and warehouse. Follow that guidance for
@@ -556,17 +556,20 @@ anyone. That is the argument for owning the check, not evidence that you can sto
 
 ## Recommendations
 
-**Know which side of the boundary you are on.** A governed table is enforced by the platform and a
-vector index is enforced by you, and those deserve different amounts of confidence.
+**Understand where access control has to be enforced, and who owns it.** A governed table is
+enforced by the platform; a vector index is enforced by whoever writes the retrieval code. That
+splits the work between the index creator, who has to put the ACL columns there, and the agent
+developer, who has to filter on them — and neither half works alone.
 
-**Write the columns at index time.** Your ACL can never be more expressive than the metadata you
-put alongside the chunks, and adding one later means a rebuild.
+**Write the ACL columns at index time.** Your ACL can never be more expressive than the metadata
+you put alongside the chunks, and adding one later means a rebuild.
 
-**Deny on error.** Make "no entitlement" and "something broke" tell themselves apart, so a zero row
-count is diagnosable.
+**Make your failure modes explicit.** "No entitlement" and "expired token" are different events
+that both return zero rows, and you cannot fix what you cannot tell apart. Give each one its own
+signal so a zero row count is diagnosable.
 
-**Check the service principal, not the feature.** On any non-interactive path the SP is the whole
-of your access control, whatever row-level security is switched on.
+**Check the access rights on your backup paths.** On any non-interactive path the SP's access is
+the access used, whatever row-level security is switched on.
 
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:

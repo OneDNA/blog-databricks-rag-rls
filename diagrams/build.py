@@ -1420,7 +1420,7 @@ def decision_tree_narrow():
 
     d.add("note1", esc(
         f'<span style="font-size:{N_DETAIL}px;color:{NAVY_DEEP};">On a non-interactive path the '
-        f'service principal is the whole of your access control. Review its grants.</span>'),
+        f"SP's access is the access used. Review its grants.</span>"),
         n_note(LAVA_DEEP, WHITE), X, 508, W, 68)
 
     d.add("d2", esc(f'<b style="font-size:{N_TITLE}px;">no &#8594; does the ACL fit the '
