@@ -11,6 +11,9 @@ diagrams/chat-response.html
 .pdfbuild/
 *.pdf
 
+# Export bundles. Same reasoning: regenerated from the markdown, never edited here.
+dist/
+
 # Python
 __pycache__/
 *.py[cod]
