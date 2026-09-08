@@ -25,7 +25,7 @@ runs on a schedule and writes the index. Documents arrive from SharePoint, and a
 chunks, enriches and embeds them, writing one governed Unity Catalog artefact per stage. **Serve**
 is where agents and indexes are deployed and called — a live request path that only reads.
 
-![AI RAG agent and index development](../../diagrams/rendered/build-and-serve-narrow.png)
+![AI RAG agent and index development](../../diagrams/rendered/build-and-serve.png)
 
 We want to enforce permissions at query time, inside the agent, rather than baking them into what
 gets indexed. This means you do not need separate indexes for different audiences. The trade is that
@@ -74,7 +74,7 @@ querying it. It has no row filters and no column masks. Filtering an index is a 
 from application code, so you explicitly add metadata columns to filter on to the source table, and
 add filters to the query being sent to the index.
 
-![Governance boundary: table to index](../../diagrams/rendered/governance-boundary-narrow.png)
+![Governance boundary: table to index](../../diagrams/rendered/governance-boundary.png)
 
 A document travels through parsing, chunking and embedding on its way to the index, and the security
 context does not reach the index. What arrives is what you deliberately wrote into metadata columns
@@ -113,7 +113,7 @@ chunk body does.
 The ACL resolves per request from the caller's own token, with groups from SCIM using their
 credentials. Perhaps forty lines.
 
-![ACL resolution per request](../../diagrams/rendered/acl-flow-narrow.png)
+![ACL resolution per request](../../diagrams/rendered/acl-flow.png)
 
 The groups come from one call, with the caller's own token in the header:
 
@@ -177,13 +177,14 @@ Two hosts can run the chain, and one difference settles which:
 The moment the chain touches a file, Apps has to be the host. Write the chain so it does not know
 which host it is on and that stays a configuration change.
 
-In front of either host sits whatever the user opens, and none of those are Databricks. Teams never
-yields a Databricks token: the Bot Framework OAuth prompt returns an **Entra** token, which
-Databricks rejects on workspace APIs, so the bot exchanges it at `/oidc/v1/token` (RFC 8693) and
-calls the endpoint with the result. That exchange needs an account-level federation policy trusting
-the issuer and audience, plus four Entra settings — `preferred_username` as an optional
-access-token claim, `requestedAccessTokenVersion` 2, an `access_as_user` scope, and the Bot
-Framework redirect URI.
+In front of either host sits whatever the user opens — a custom web UI, something like Microsoft
+Teams — and none of those are Databricks, so none of them can hold a Databricks token. They all
+need **Entra token federation**. Signing the user in with Entra yields an Entra token, which
+Databricks rejects on workspace APIs, so the front end exchanges it at `/oidc/v1/token` (RFC 8693)
+and calls the endpoint with the result. Enabling that exchange is account and tenant configuration:
+a federation policy trusting the issuer and audience, plus an Entra app registration emitting
+`preferred_username` as an optional access-token claim, `requestedAccessTokenVersion` 2, and a
+scope the front end can request on the user's behalf.
 
 > [!WARNING]
 > Every prerequisite here fails with no error message: below `mlflow` 2.22.1 OBO is off by default,
@@ -218,7 +219,7 @@ and no number of passages adds up to a total. So the agent has a second retrieva
 questions go to similarity search, counts and totals go to a Genie space generating SQL against
 governed tables. Both run on the caller's credentials.
 
-![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture-narrow.png)
+![Row-level security in a Databricks RAG pipeline](../../diagrams/rendered/architecture.png)
 
 What differs is who enforces. On the prose branch it is our declared grants, so the reason you got
 a passage is "one of your groups allowed it". On the data branch it is Unity Catalog, so the reason
@@ -226,9 +227,9 @@ is "Unity Catalog checked you", with the generated SQL and a statement id as evi
 
 We tested whether the caller's identity holds across the hops into Genie, and it does on every path
 we could construct. Query history attributes the statement to the human on the interactive path,
-through the agent under OBO, and from Teams — which adds a third hop through Entra and the token
-exchange. In each case `executed_as_user_name` names the person, not the endpoint's service
-principal.
+through the agent under OBO, and from an external front end — which adds a third hop through Entra
+and the token exchange. In each case `executed_as_user_name` names the person, not the endpoint's
+service principal.
 
 > [!WARNING]
 > On a non-interactive path the service principal is the whole of your access control: every human
@@ -258,7 +259,7 @@ of your access control, whatever row-level security is switched on.
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:
 
-![Enforcement path selection](../../diagrams/rendered/decision-tree-narrow.png)
+![Enforcement path selection](../../diagrams/rendered/decision-tree.png)
 
 Then test each control against a case where it has to deny. Point the filter at a value no row
 has and check it returns nothing. Revoke the grant and check the answer disappears. Set the

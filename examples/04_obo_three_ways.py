@@ -11,7 +11,9 @@ differences are load-bearing:
 
   * Databricks Apps      -- x-forwarded-access-token header. Widest scope set, INCLUDING Volumes.
   * Model Serving        -- ModelServingUserCredentials(). No Volumes, no file operations. At all.
-  * Microsoft Teams      -- an ENTRA token, which Databricks rejects until you exchange it.
+  * External front end   -- an ENTRA token, which Databricks rejects until you exchange it. Any
+                            client that is not Databricks (a custom web UI, something like
+                            Microsoft Teams) lands here and needs Entra token federation.
 
 The Volumes gap is an architectural constraint worth knowing before you pick a host: the moment
 your chain needs to read a file, Model Serving stops being an option.
@@ -69,21 +71,21 @@ MODEL_SERVING = Mechanism(
     ),
 )
 
-TEAMS = Mechanism(
-    name="Microsoft Teams",
+EXTERNAL_FRONT_END = Mechanism(
+    name="External front end (web UI, Teams, ...)",
     token_arrives_as="an Entra token (NOT a Databricks token)",
     obtained_via="RFC 8693 exchange at POST /oidc/v1/token",
-    enabled_by="an ACCOUNT-level federation policy",
+    enabled_by="Entra token federation: an ACCOUNT-level federation policy",
     can_reach=("whatever the exchanged token allows",),
     cannot_reach=("anything, until the exchange succeeds",),
     silent_failure=(
-        "Four Entra settings the policy depends on, none of which name themselves in the "
-        "resulting error: preferred_username as an optional ACCESS TOKEN claim; "
-        "requestedAccessTokenVersion 2; the access_as_user scope; the botframework redirect URI."
+        "Entra settings the policy depends on, none of which name themselves in the resulting "
+        "error: preferred_username as an optional ACCESS TOKEN claim; "
+        "requestedAccessTokenVersion 2; a scope the front end can request on the user's behalf."
     ),
 )
 
-MECHANISMS = (APPS, MODEL_SERVING, TEAMS)
+MECHANISMS = (APPS, MODEL_SERVING, EXTERNAL_FRONT_END)
 
 
 # --------------------------------------------------------------------------------------------
@@ -131,11 +133,13 @@ def model_serving_provider() -> CredentialProvider:
     return provide
 
 
-def teams_provider(entra_token: str, host: str) -> CredentialProvider:
-    """Teams: exchange the Entra token for a Databricks one, or fail.
+def federated_provider(entra_token: str, host: str) -> CredentialProvider:
+    """External front end: exchange the Entra token for a Databricks one, or fail.
 
-    Teams NEVER yields a Databricks token. The Bot Framework OAuth prompt returns an Entra
-    token, which Databricks rejects on workspace APIs.
+    A client that is not Databricks never yields a Databricks token. Signing the user in with
+    Entra yields an Entra token, which Databricks rejects on workspace APIs. This exchange is
+    what Entra token federation buys you, and it works the same for a custom web UI or for a
+    client like Microsoft Teams.
     """
 
     def provide() -> str:

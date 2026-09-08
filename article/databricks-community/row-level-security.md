@@ -13,7 +13,7 @@ Databricks documents this.
 > "Row and column level permissions are not supported. However, you can implement your own application level ACLs using the filter API."
 > — [Databricks AI Search documentation](https://docs.databricks.com/aws/en/vector-search/vector-search)
 
-This post is about the implementation of this, and the caveats. We built per-user access control over a governed corpus at a civil engineering consultancy, reachable from applications outside Databricks. In that project, it was reached from a Custom WebUI, but we use Microsoft Teams for this demo. What follows is the design, the code, and the parts that
+This post is about the implementation of this, and the caveats. We built per-user access control over a governed corpus at a civil engineering consultancy, reachable from applications outside Databricks — a custom web UI in that project, though a client like Microsoft Teams works the same way once Entra token federation is enabled. What follows is the design, the code, and the parts that
 surprised us.
 
 The starting point was [Mastering RAG Chatbot Security: ACL and Metadata Filtering with Mosaic AI Vector Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot-security-acl-and-metadata-filtering-with/ba-p/101946),
@@ -53,7 +53,7 @@ One ABAC pattern you can use for additional security: Tag everything `classifica
 
 Point an AI Search index at those governed tables and the picture changes. ABAC governs *tables*. Tag a table, embed its contents, and the index that results can take the grants but not the row-level security. You need to explicitly add metadata columns to filter on to the source table, and add filters to the query being sent to the index.
 
-![Governance boundary: table to index](../../diagrams/rendered/governance-boundary-narrow.png)
+![Governance boundary: table to index](../../diagrams/rendered/governance-boundary.png)
 
 A document travels through parsing, chunking, enrichment and embedding on its way to the index, and the security context does not reach the index. What arrives is what you deliberately wrote into metadata columns alongside it, which means your ACL can never be more expressive than the columns you wrote at index time. Because a schema change, leads to recreating the table, you might spend a lot of tokens on reindexing your entire corpus. Those columns are a build-side prerequisite, not a retrieval concern: their values usually come from the source system, so the pipeline has to reach them before the serve side can filter on anything.
 
@@ -108,7 +108,7 @@ We use the caller's token rather than the endpoint's, so nobody can claim a memb
 > [!NOTE]
 > `/Me` returns direct memberships. A workspace-local group can have an Entra-sourced group as a member, so somebody can be a transitive member of a group this call does not list, and removing them from the outer group does not demote them.
 
-![ACL resolution per request](../../diagrams/rendered/acl-flow-narrow.png)
+![ACL resolution per request](../../diagrams/rendered/acl-flow.png)
 
 There are four design questions implemented in that flow:
 
@@ -135,7 +135,9 @@ All of that assumes the caller's identity reaches Unity Catalog rather than the 
 The moment the chain touches a file, Apps has to be the host. Write the chain so it does not know
 which host it is on and that stays a configuration change.
 
-Teams never yields a Databricks token. The Bot Framework OAuth prompt returns an **Entra** token, which Databricks rejects on workspace APIs, so the bot exchanges it at `/oidc/v1/token` (RFC 8693) and calls the endpoint with the result. That exchange needs an account-level federation policy trusting the issuer and audience, plus four Entra settings: `preferred_username` as an optional access-token claim, `requestedAccessTokenVersion` 2, an `access_as_user` scope, and the Bot Framework redirect URI.
+In front of either host sits whatever the user opens: a custom web UI, something like Microsoft Teams, any client that is not Databricks. None of them can hold a Databricks token, so they all need the same thing — **Entra token federation**. Signing the user in with Entra gets you an Entra token, which Databricks rejects on workspace APIs. The front end exchanges it at `/oidc/v1/token` (RFC 8693) and calls the endpoint with the result.
+
+Enabling that exchange is account and tenant configuration, not code: an account-level federation policy trusting the issuer and audience, and an Entra app registration that emits what the policy expects — `preferred_username` as an optional access-token claim, `requestedAccessTokenVersion` 2, and a scope the front end can request on the user's behalf. Get it right and the front end holds an ordinary Databricks user token; from there everything in this post reads the same.
 
 > [!WARNING]
 > Below `mlflow` 2.22.1 OBO is off by default and the agent answers as the endpoint. A missing `databricks-ai-bridge` in the requirements drops the agent back to its own identity.
@@ -158,9 +160,9 @@ column the index does not have, he would have received Water Delta chunks with n
 `obo_active` reads `true` in all four metadata boxes, which is what makes either zero readable.
 Without it a zero could mean "correctly filtered" or "identity broken", and the two are
 indistinguishable from the answer alone. The same holds across hops: query history attributes the
-statement to the human on the interactive path, through the agent under OBO, and from Teams, which
-adds a third hop through Entra and the token exchange. In each case `executed_as_user_name` names
-the person, not the endpoint's service principal.
+statement to the human on the interactive path, through the agent under OBO, and from an external
+front end, which adds a third hop through Entra and the token exchange. In each case
+`executed_as_user_name` names the person, not the endpoint's service principal.
 
 ## Two things that surprised us
 
@@ -199,7 +201,7 @@ your access control.
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:
 
-![Enforcement path selection](../../diagrams/rendered/decision-tree-narrow.png)
+![Enforcement path selection](../../diagrams/rendered/decision-tree.png)
 
 Then test each control against a case where it has to deny. Point the filter at a value no row
 has and check it returns nothing. Revoke the grant and check the answer disappears. Set the

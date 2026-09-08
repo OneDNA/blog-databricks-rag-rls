@@ -6,8 +6,9 @@ different ones because they are allowed to see different things?
 Unity Catalog answers that well for tables — row filters and column masks, evaluated per caller.
 It does not answer it for a vector index, which has grants but no row filters, so the access
 decision moves out of the platform and into code you write. This is a write-up of building that
-access control on Databricks, reachable from Microsoft Teams, and of measuring whether it actually
-holds.
+access control on Databricks, reachable from a front end outside the platform — a custom web UI or
+a client like Microsoft Teams, once Entra token federation is enabled — and of measuring whether it
+actually holds.
 
 ## The article
 

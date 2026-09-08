@@ -8,8 +8,9 @@ branch of the same agent -- a Genie space over governed tables, where the platfo
 Two things are worth taking from this file.
 
 THE GOOD NEWS: Unity Catalog resolves row filters and column masks against the CALLER, on every
-path we could construct -- interactive, agent-under-OBO, and Teams (three hops). Query history
-attributes the statement to the human, not to the serving endpoint's service principal.
+path we could construct -- interactive, agent-under-OBO, and an external front end (three hops, via
+Entra token federation). Query history attributes the statement to the human, not to the serving
+endpoint's service principal.
 
 THE PROBLEM: on a non-interactive path the service principal IS the evaluated identity. Correctly
 and honestly. Which means every human calling through that integration sees the union of what
@@ -60,7 +61,7 @@ MEASURED = (
         note="two hops; needs the 'genie' OAuth scope in UserAuthPolicy",
     ),
     Path(
-        "Teams -> agent -> Genie",
+        "External front end -> agent -> Genie",
         caller="a human",
         evaluated_as="that human",
         per_caller=True,

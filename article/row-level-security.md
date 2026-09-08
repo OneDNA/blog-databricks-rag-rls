@@ -17,10 +17,11 @@ text in the context of a project. But not everyone should have access to all inf
 project, let alone to projects outside their access level.
 
 We built such a system on Databricks: a RAG chain over a governed corpus, reachable from
-applications outside Databricks — for example, Microsoft Teams or a custom web interface like
-OpenWebUI — with access control per user. RAG on the native AI Search (formerly Vector Search) has
-no feature for row-level security, so we built it ourselves. The starting point was [Mastering RAG
-Chatbot Security: ACL and Metadata Filtering with Mosaic AI Vector
+applications outside Databricks — a custom web interface like OpenWebUI, or a client such as
+Microsoft Teams, once Entra token federation is enabled — with access control per user. RAG on the
+native AI Search (formerly Vector Search) has no feature for row-level security, so we built it
+ourselves. The starting point was [Mastering RAG Chatbot Security: ACL and Metadata Filtering with
+Mosaic AI Vector
 Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot-security-acl-and-metadata-filtering-with/ba-p/101946),
 which tags chunks with a metadata column and passes a matching value as a query filter. That post
 passes the value in by hand; the piece we had to add was resolving it from the caller, which is
@@ -39,10 +40,10 @@ can inspect every step later. The agent is built here too: the chain, its tools,
 the ACL are each versioned and registered, then deployed as one endpoint.
 
 The second is the **serve** path. It is a live request path and it reads the index at inference
-time. A question arrives from Teams or a web UI, the deployed agent resolves who is asking, narrows
-retrieval to what that person may see, fetches from the index, and answers.
+time. A question arrives from a web UI or another external client, the deployed agent resolves who
+is asking, narrows retrieval to what that person may see, fetches from the index, and answers.
 
-![AI RAG agent and index development](../diagrams/rendered/build-and-serve-narrow.png)
+![AI RAG agent and index development](../diagrams/rendered/build-and-serve.png)
 
 We want to enforce permissions at query time, inside the agent, rather than baking them into what
 gets indexed. This means you do not need separate indexes for different audiences: one deployed
@@ -126,7 +127,7 @@ can read the chunk text. The ACL has to apply before any column comes back, not 
 chunk body does. A filter that protects the text and leaks the author list has not protected
 anything.
 
-![Governance boundary: table to index](../diagrams/rendered/governance-boundary-narrow.png)
+![Governance boundary: table to index](../diagrams/rendered/governance-boundary.png)
 
 ## Filters on AI Search
 
@@ -257,7 +258,7 @@ Four decisions in that layer shaped the rest:
   name has to encode a tuple, and a declared table is needed. Then an unmapped
   group grants nothing, and adding a source system is a reviewable change to a config value.
 
-![ACL resolution per request](../diagrams/rendered/acl-flow-narrow.png)
+![ACL resolution per request](../diagrams/rendered/acl-flow.png)
 
 > [!WARNING]
 > Each of those four has an alternative that grants access instead of refusing it.
@@ -383,16 +384,17 @@ They also stack. An App can call a serving endpoint as a resource and forward th
 so the endpoint still runs as the user. That gives you a UI on Apps with the chain versioned as a
 model.
 
-In front of either host sits whatever the user opens. Teams is one front end; a web UI or a custom
-app works the same way, because none of them are Databricks and none of them hold a Databricks
-token. Entra token federation is what makes any of them work.
+In front of either host sits whatever the user opens: a custom web UI, something like Microsoft
+Teams, any client that is not Databricks. None of them can hold a Databricks token, so they all
+need the same thing — **Entra token federation**.
 
-Teams never yields a Databricks token. The Bot Framework OAuth prompt returns an **Entra** token,
-which Databricks rejects on workspace APIs, so the bot exchanges it at `/oidc/v1/token` (RFC 8693)
-and calls the endpoint with the result. That exchange works when an account-level federation
-policy trusts the issuer and audience, and when four Entra settings are in place:
-`preferred_username` as an optional access-token claim, `requestedAccessTokenVersion` 2, an
-`access_as_user` scope, and the Bot Framework redirect URI.
+Signing the user in with Entra gets you an Entra token, which Databricks rejects on workspace
+APIs. The front end exchanges it at `/oidc/v1/token` (RFC 8693) and calls the endpoint with the
+result. Enabling that exchange is account and tenant configuration rather than code: an
+account-level federation policy trusting the issuer and audience, and an Entra app registration
+that emits what the policy expects — `preferred_username` as an optional access-token claim,
+`requestedAccessTokenVersion` 2, and a scope the front end can request on the user's behalf. Get
+it right and the front end holds an ordinary Databricks user token.
 
 Each hop passes one token, and drops the identity if it does not:
 
@@ -413,7 +415,7 @@ index sits in the shared one.
 > [!WARNING]
 > **Every prerequisite in this section fails without an error message.** Below `mlflow` 2.22.1 OBO
 > is off by default; a missing `databricks-ai-bridge` drops the agent to its own identity; each of
-> the four Entra settings breaks the exchange with an error that names something else.
+> the Entra settings breaks the exchange with an error that names something else.
 
 Retrieval pointed at the wrong schema returns zero rows too, which looks exactly like a correctly
 denied caller. So assert on the identity that produced the answer, not on whether an answer
@@ -455,7 +457,7 @@ ask when you wrote it.
 ```mermaid
 sequenceDiagram
     actor U as User
-    participant T as Teams
+    participant T as Front end<br/>(web UI, Teams, …)
     participant E as Entra ID
     participant D as Databricks OIDC
     participant A as Agent endpoint
@@ -463,7 +465,7 @@ sequenceDiagram
     participant G as Genie → Unity Catalog
 
     U->>T: question
-    T->>E: OAuth prompt
+    T->>E: OAuth sign-in
     E-->>T: Entra token
     T->>D: RFC 8693 exchange
     D-->>T: Databricks token <br/>(as the user)
@@ -499,14 +501,14 @@ SQL and a statement id as evidence.
 
 We tested whether the caller's identity holds across the hops into Genie, and it does on every path
 we could construct. Query history attributes the statement to the human on the interactive path,
-through the agent under OBO, and from Teams — which adds a third hop through Entra and the token
-exchange. In each case `executed_as_user_name` names the person, not the serving endpoint's service
-principal.
+through the agent under OBO, and from an external front end — which adds a third hop through Entra
+and the token exchange. In each case `executed_as_user_name` names the person, not the serving
+endpoint's service principal.
 
 Both branches, and the identity work in front of them, on one page — read it by border colour
 before you read it by arrow:
 
-![Row-level security in a Databricks RAG pipeline](../diagrams/rendered/architecture-narrow.png)
+![Row-level security in a Databricks RAG pipeline](../diagrams/rendered/architecture.png)
 
 A service principal calling the same space over the API gets its own identity evaluated, honestly,
 as itself. No permissions are laundered. Under user authorisation the caller's own grants apply and
@@ -592,7 +594,7 @@ of your access control, whatever row-level security is switched on.
 Which path you land on follows from two questions — whether the content is structured, and whether
 your ACL fits the columns you can get into the index:
 
-![Enforcement path selection](../diagrams/rendered/decision-tree-narrow.png)
+![Enforcement path selection](../diagrams/rendered/decision-tree.png)
 
 Then test each control against a case where it has to deny. Point the filter at a value no row
 has and check it returns nothing. Revoke the grant and check the answer disappears. Set the
@@ -601,9 +603,9 @@ succeed is a control you have not tested.
 
 For me the honest summary is that knowing how we wanted the system to behave was the easy part.
 Making it behave that way, and verifying when it did not, was hard. The mechanisms are no easier:
-Unity Catalog resolves per caller, OBO propagates through three hops including Teams, and filters
-apply — but each of those took work to get right, and more work to prove. What we measured is that
-they were still working when we looked.
+Unity Catalog resolves per caller, OBO propagates through three hops including an external front
+end, and filters apply — but each of those took work to get right, and more work to prove. What we
+measured is that they were still working when we looked.
 
 ## Runnable examples
 

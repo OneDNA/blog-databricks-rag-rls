@@ -17,15 +17,16 @@ hoeveelheden ongestructureerde tekst. Maar niet iedereen hoort bij alle informat
 te kunnen, laat staan bij projecten buiten zijn eigen toegangsniveau.
 
 Zo'n systeem hebben we op Databricks gebouwd: een RAG-keten over een beheerd corpus, bereikbaar
-vanuit applicaties buiten Databricks — bijvoorbeeld Microsoft Teams of een eigen webinterface zoals
-OpenWebUI — met toegangscontrole per gebruiker. RAG op de native AI Search (voorheen Vector Search)
-heeft geen voorziening voor row-level security, dus hebben we het zelf gebouwd. Het vertrekpunt was
-[Mastering RAG Chatbot Security: ACL and Metadata Filtering with Mosaic AI Vector
+vanuit applicaties buiten Databricks — een eigen webinterface zoals OpenWebUI, of een client als
+Microsoft Teams zodra Entra-tokenfederatie aanstaat — met toegangscontrole per gebruiker. RAG op de
+native AI Search (voorheen Vector Search) heeft geen voorziening voor row-level security, dus
+hebben we het zelf gebouwd. Het vertrekpunt was [Mastering RAG Chatbot Security: ACL and Metadata
+Filtering with Mosaic AI Vector
 Search](https://community.databricks.com/t5/technical-blog/mastering-rag-chatbot-security-acl-and-metadata-filtering-with/ba-p/101946),
 dat chunks tagt met een metadatakolom en een bijpassende waarde als queryfilter meegeeft. Die post
-geeft die waarde met de hand mee; wat wij eraan moesten toevoegen was hem uit de aanroeper afleiden,
-en daar komt SCIM binnen. Hier nemen we een vereenvoudigde versie van die aanpak om te laten zien
-hoe het werkt.
+geeft die waarde met de hand mee; wat wij eraan moesten toevoegen was hem uit de aanroeper
+afleiden, en daar komt SCIM binnen. Hier nemen we een vereenvoudigde versie van die aanpak om te
+laten zien hoe het werkt.
 
 ## AI RAG-agent en indexontwikkeling
 
@@ -41,10 +42,11 @@ chain, de tools, de retriever en de ACL worden apart geversioneerd en geregistre
 één endpoint uitgerold.
 
 Het tweede is het **serve**-pad. Dat is een live requestpad en het leest de index op het moment van
-inferentie. Een vraag komt binnen vanuit Teams of een web-UI, de uitgerolde agent stelt vast wie het
-vraagt, beperkt de retrieval tot wat die persoon mag zien, haalt op uit de index en antwoordt.
+inferentie. Een vraag komt binnen vanuit een web-UI of een andere externe client, de uitgerolde
+agent stelt vast wie het vraagt, beperkt de retrieval tot wat die persoon mag zien, haalt op uit de
+index en antwoordt.
 
-![AI RAG-agent en indexontwikkeling](../diagrams/rendered/build-and-serve-narrow.png)
+![AI RAG-agent en indexontwikkeling](../diagrams/rendered/build-and-serve.png)
 
 We willen rechten op querymoment afdwingen, binnen in de agent, en ze niet inbakken in wat er
 geïndexeerd wordt. Dat betekent dat je geen aparte indexen nodig hebt voor verschillende
@@ -131,7 +133,7 @@ ze de chunktekst nu mogen lezen of niet. De ACL moet toeslaan vóórdat welke ko
 terugkomt, niet alleen vóór de chunktekst. Een filter dat de tekst beschermt en de auteurslijst
 lekt, heeft niets beschermd.
 
-![Governance-grens: tabel naar index](../diagrams/rendered/governance-boundary-narrow.png)
+![Governance-grens: tabel naar index](../diagrams/rendered/governance-boundary.png)
 
 ## Filters op AI Search
 
@@ -265,7 +267,7 @@ Vier beslissingen in die laag bepaalden de rest:
   verleent een niet-gemapte groep niets, en is een bronsysteem toevoegen een
   reviewbare wijziging in een configuratiewaarde.
 
-![ACL-resolutie per request](../diagrams/rendered/acl-flow-narrow.png)
+![ACL-resolutie per request](../diagrams/rendered/acl-flow.png)
 
 > [!WARNING]
 > Van elk van die vier bestaat een alternatief dat toegang geeft in plaats van weigert.
@@ -399,16 +401,18 @@ Ze stapelen ook. Een App kan een serving endpoint als resource aanroepen en het 
 aanroeper doorgeven, zodat het endpoint nog steeds als die gebruiker draait. Zo krijg je een UI op
 Apps met de keten als model geversioneerd.
 
-Vóór beide hosts staat wat de gebruiker opent. Teams is één front end; een web-UI of een eigen
-applicatie werkt hetzelfde, want geen ervan is Databricks en geen ervan heeft een Databricks-token.
-Entra-tokenfederatie is wat ze alle laat werken.
+Vóór beide hosts staat wat de gebruiker opent: een eigen web-UI, iets als Microsoft Teams, elke
+client die geen Databricks is. Geen ervan kan een Databricks-token vasthouden, dus ze hebben alle
+hetzelfde nodig — **Entra-tokenfederatie**.
 
-Teams geeft je nooit een Databricks-token. De OAuth-prompt van het Bot Framework geeft een
-**Entra**-token terug, dat Databricks op workspace-API's weigert, dus wisselt de bot het in bij
-`/oidc/v1/token` (RFC 8693) en roept het endpoint aan met het resultaat. Die exchange werkt als een
-federation policy op accountniveau de issuer en audience vertrouwt, en als vier Entra-instellingen
-staan: `preferred_username` als optionele access-token-claim, `requestedAccessTokenVersion` 2, een
-`access_as_user`-scope en de redirect-URI van het Bot Framework.
+De gebruiker aanmelden met Entra levert een Entra-token op, dat Databricks op workspace-API's
+weigert. De front end wisselt het in bij `/oidc/v1/token` (RFC 8693) en roept het endpoint aan met
+het resultaat. Die exchange aanzetten is configuratie op account- en tenantniveau, geen code: een
+federation policy op accountniveau die de issuer en audience vertrouwt, en een Entra
+app-registratie die uitstuurt wat die policy verwacht — `preferred_username` als optionele
+access-token-claim, `requestedAccessTokenVersion` 2, en een scope die de front end namens de
+gebruiker kan opvragen. Staat dat goed, dan heeft de front end een gewoon
+Databricks-gebruikerstoken.
 
 Elke hop geeft één token door, en laat de identiteit vallen als hij dat niet doet:
 
@@ -429,7 +433,7 @@ registreren terwijl de gevulde index in het gedeelde schema staat.
 > [!WARNING]
 > **Elke voorwaarde in deze paragraaf faalt zonder foutmelding.** Onder `mlflow` 2.22.1 staat OBO
 > standaard uit; een ontbrekende `databricks-ai-bridge` laat de agent terugvallen op zijn eigen
-> identiteit; elk van de vier Entra-instellingen breekt de exchange met een fout die iets anders
+> identiteit; elk van de Entra-instellingen breekt de exchange met een fout die iets anders
 > noemt.
 
 Retrieval die naar het verkeerde schema wijst geeft ook nul rijen, wat er precies zo uitziet als een
@@ -473,7 +477,7 @@ vraag die je bij het maken hebt bedacht.
 ```mermaid
 sequenceDiagram
     actor U as User
-    participant T as Teams
+    participant T as Front end<br/>(web UI, Teams, …)
     participant E as Entra ID
     participant D as Databricks OIDC
     participant A as Agent endpoint
@@ -481,7 +485,7 @@ sequenceDiagram
     participant G as Genie → Unity Catalog
 
     U->>T: question
-    T->>E: OAuth prompt
+    T->>E: OAuth sign-in
     E-->>T: Entra token
     T->>D: RFC 8693 exchange
     D-->>T: Databricks token <br/>(as the user)
@@ -518,14 +522,14 @@ gegenereerde SQL en een statement-id als bewijs.
 
 We hebben getest of de identiteit van de aanroeper standhoudt over de hops naar Genie, en dat doet
 hij op elk pad dat we konden bouwen. Query history schrijft het statement toe aan de mens op het
-interactieve pad, via de agent onder OBO, en vanuit Teams — dat een derde hop toevoegt via Entra en
-de token-exchange. In alle gevallen noemt `executed_as_user_name` de persoon, niet de service
-principal van het serving endpoint.
+interactieve pad, via de agent onder OBO, en vanuit een externe front end — dat een derde hop
+toevoegt via Entra en de token-exchange. In alle gevallen noemt `executed_as_user_name` de persoon,
+niet de service principal van het serving endpoint.
 
 Beide takken, en het identiteitswerk ervoor, op één pagina — lees hem eerst op randkleur, daarna
 pas op pijlen:
 
-![Row-level security in een Databricks RAG-pipeline](../diagrams/rendered/architecture-narrow.png)
+![Row-level security in een Databricks RAG-pipeline](../diagrams/rendered/architecture.png)
 
 Een service principal die dezelfde space via de API aanroept, krijgt zijn eigen identiteit
 geëvalueerd, eerlijk, als zichzelf. Er worden geen rechten witgewassen. Onder user authorization
@@ -617,7 +621,7 @@ volledige toegangscontrole, wat er ook aan row-level security aanstaat.
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
 kolommen die je mee de index in kunt nemen:
 
-![Keuze van het handhavingspad](../diagrams/rendered/decision-tree-narrow.png)
+![Keuze van het handhavingspad](../diagrams/rendered/decision-tree.png)
 
 Test daarna elke control tegen een geval waarin hij moet weigeren. Richt het filter op een waarde
 die geen enkele rij heeft en controleer of het niets oplevert. Trek de grant in en controleer of
@@ -627,7 +631,8 @@ naar nul gaat. Een control die je alleen hebt zien slagen, is een control die je
 Voor mij is de eerlijke samenvatting dat wéten hoe we wilden dat het systeem zich gedroeg het
 makkelijke deel was. Het zich zo laten gedragen, en kunnen vaststellen wanneer dat niet zo was, was
 het moeilijke deel. De mechanismen zijn niet eenvoudiger: Unity Catalog evalueert per aanroeper, OBO
-propageert door drie hops inclusief Teams, en filters worden toegepast — maar elk daarvan kostte
+propageert door drie hops inclusief een externe front end, en filters worden toegepast — maar elk
+daarvan kostte
 werk om goed te krijgen, en nog meer werk om te bewijzen. Wat we hebben gemeten, is dat ze nog
 steeds werkten toen we keken.
 

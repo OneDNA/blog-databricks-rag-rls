@@ -27,7 +27,7 @@ SharePoint, en een pipeline parset, chunkt, verrijkt en embedt ze, met één beh
 Catalog-artefact per stap. **Serve** is waar agents en indexen worden uitgerold en aangeroepen
 — een live requestpad dat alleen leest.
 
-![AI RAG-agent en indexontwikkeling](../../diagrams/rendered/build-and-serve-narrow.png)
+![AI RAG-agent en indexontwikkeling](../../diagrams/rendered/build-and-serve.png)
 
 We willen rechten op querymoment afdwingen, binnen in de agent, en ze niet inbakken in wat er
 geïndexeerd wordt. Dat betekent dat je geen aparte indexen nodig hebt voor verschillende
@@ -78,7 +78,7 @@ toestaan of weigeren. Er zitten geen row filters en geen column masks op. Een in
 parameter die je vanuit applicatiecode meegeeft: je voegt zelf expliciet metadatakolommen om op te
 filteren aan de brontabel toe, en geeft filters mee aan de query die naar de index gaat.
 
-![Governance-grens: tabel naar index](../../diagrams/rendered/governance-boundary-narrow.png)
+![Governance-grens: tabel naar index](../../diagrams/rendered/governance-boundary.png)
 
 Een document gaat op weg naar de index door parsing, chunking en embedding, en de security-context
 bereikt de index niet. Wat aankomt, is wat je bewust in metadatakolommen ernaast hebt weggeschreven
@@ -117,7 +117,7 @@ niet alleen vóór de chunktekst.
 De ACL wordt per request opgelost uit het token van de aanroeper zelf, met groepen uit SCIM met zijn
 credentials. Een veertig regels, misschien.
 
-![ACL-resolutie per request](../../diagrams/rendered/acl-flow-narrow.png)
+![ACL-resolutie per request](../../diagrams/rendered/acl-flow.png)
 
 De groepen komen uit één call, met het token van de aanroeper zelf in de header:
 
@@ -182,13 +182,14 @@ Twee hosts kunnen de keten draaien, en één verschil bepaalt welke:
 Zodra de keten een bestand aanraakt, moet Apps de host zijn. Schrijf de keten zo dat hij niet weet
 op welke host hij draait, en dan blijft dat een configuratiewijziging.
 
-Vóór beide hosts zit wat de gebruiker opent, en geen daarvan is Databricks. Teams levert helemaal
-geen Databricks-token: de Bot Framework OAuth-prompt geeft een **Entra**-token terug, dat Databricks
-op workspace-API's weigert, dus wisselt de bot het in op `/oidc/v1/token` (RFC 8693) en roept het
-endpoint aan met het resultaat. Die exchange vereist een federatiebeleid op accountniveau dat de
-issuer en audience vertrouwt, plus vier Entra-instellingen: `preferred_username` als optionele
-access-token-claim, `requestedAccessTokenVersion` 2, een `access_as_user`-scope, en de Bot
-Framework-redirect-URI.
+Vóór beide hosts zit wat de gebruiker opent — een eigen web-UI, iets als Microsoft Teams — en geen
+daarvan is Databricks, dus geen ervan kan een Databricks-token vasthouden. Ze hebben alle
+**Entra-tokenfederatie** nodig. De gebruiker aanmelden met Entra levert een Entra-token op, dat
+Databricks op workspace-API's weigert, dus wisselt de front end het in op `/oidc/v1/token`
+(RFC 8693) en roept het endpoint aan met het resultaat. Die exchange aanzetten is configuratie op
+account- en tenantniveau: een federatiebeleid dat de issuer en audience vertrouwt, plus een Entra
+app-registratie die `preferred_username` als optionele access-token-claim uitstuurt,
+`requestedAccessTokenVersion` 2, en een scope die de front end namens de gebruiker kan opvragen.
 
 > [!WARNING]
 > Elke voorwaarde hier faalt zonder foutmelding: onder `mlflow` 2.22.1 staat OBO standaard uit, en
@@ -224,7 +225,7 @@ tweede retrieval-pad: prozavragen gaan naar similarity search, aantallen en tota
 Genie-space die SQL genereert tegen beheerde tabellen. Beide draaien op de credentials van de
 aanroeper.
 
-![Row-level security in een Databricks RAG-pipeline](../../diagrams/rendered/architecture-narrow.png)
+![Row-level security in een Databricks RAG-pipeline](../../diagrams/rendered/architecture.png)
 
 Wat verschilt, is wie handhaaft. Op de prozatak is dat onze gedeclareerde grants, en de reden dat je
 een passage krijgt is "een van jouw groepen liet hem toe". Op de datatak is het Unity Catalog, en de
@@ -233,7 +234,8 @@ bewijs.
 
 We hebben getest of de identiteit van de aanroeper standhoudt over de hops naar Genie, en dat doet
 hij op elk pad dat we konden bouwen. Query history schrijft het statement toe aan de mens op het
-interactieve pad, via de agent onder OBO, en vanuit Teams — dat een derde hop toevoegt via Entra en
+interactieve pad, via de agent onder OBO, en vanuit een externe front end — dat een derde hop
+toevoegt via Entra en
 de token-exchange. In elk geval noemt `executed_as_user_name` de persoon, en niet de service
 principal van het endpoint.
 
@@ -256,7 +258,7 @@ een vectorindex door jou, en die verdienen een verschillende mate van vertrouwen
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
 kolommen die je mee de index in kunt nemen:
 
-![Keuze van het handhavingspad](../../diagrams/rendered/decision-tree-narrow.png)
+![Keuze van het handhavingspad](../../diagrams/rendered/decision-tree.png)
 
 Test daarna elke control tegen een geval waarin hij moet weigeren. Richt het filter op een waarde
 die geen enkele rij heeft en controleer of het niets oplevert. Trek de grant in en controleer of
