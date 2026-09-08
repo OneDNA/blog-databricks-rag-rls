@@ -178,8 +178,9 @@ op welke host hij draait, en dan blijft dat een configuratiewijziging.
 
 Vóór beide hosts zit wat de gebruiker opent — een eigen web-UI, iets als Microsoft Teams — en geen
 daarvan is Databricks, dus geen ervan kan een Databricks-token vasthouden. Ze hebben alle
-**Entra-tokenfederatie** nodig. De gebruiker aanmelden met Entra levert een Entra-token op, dat
-Databricks op workspace-API's weigert, dus wisselt de front end het in op `/oidc/v1/token`
+**tokenfederatie** nodig. De gebruiker aanmelden met Entra levert een Entra-token op, dat
+Databricks op workspace-API's weigert, dus wisselt de servercode erachter dat token in op
+`/oidc/v1/token`
 (RFC 8693) en roept het endpoint aan met het resultaat. Die exchange aanzetten is configuratie op
 account- en tenantniveau: een federatiebeleid dat de issuer en audience vertrouwt, plus een Entra
 app-registratie die `preferred_username` als optionele access-token-claim uitstuurt,
@@ -259,7 +260,7 @@ metadata die je naast de chunks hebt weggeschreven, en er later een toevoegen be
 die beide nul rijen opleveren. Geef elk een eigen signaal, zodat je aan het antwoord kunt zien met
 welke van de twee je te maken hebt.
 
-**Controleer de toegangsrechten op je achterliggende paden.** Op elk niet-interactief pad haalt
+**Controleer wat de service principal mag lezen.** Op elk niet-interactief pad haalt
 iedere aanroeper op wat de service principal mag lezen, wat er ook aan row-level security aanstaat.
 
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de

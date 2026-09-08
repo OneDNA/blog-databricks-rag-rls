@@ -24,7 +24,7 @@ Databricks documents this.
 This post is about the implementation of this, and the caveats. We built per-user access control
 over a governed corpus at a civil engineering consultancy, reachable from applications outside
 Databricks — a custom web UI in that project, though a client like Microsoft Teams works the same
-way once Entra token federation is enabled. What follows is the design, the code, and the parts
+way once token federation is enabled. What follows is the design, the code, and the parts
 that surprised us.
 
 The starting point was [Mastering RAG Chatbot Security: ACL and Metadata Filtering with Mosaic AI
@@ -200,15 +200,15 @@ which host it is on and that stays a configuration change.
 
 In front of either host sits whatever the user opens: a custom web UI, something like Microsoft
 Teams, any client that is not Databricks. None of them can hold a Databricks token, so they all
-need the same thing — **Entra token federation**. Signing the user in with Entra gets you an Entra
-token, which Databricks rejects on workspace APIs. The front end exchanges it at `/oidc/v1/token`
+need the same thing — **token federation**. Signing the user in with Entra gets you an Entra
+token, which Databricks rejects on workspace APIs. Its server-side code exchanges that token at
+`/oidc/v1/token`
 (RFC 8693) and calls the endpoint with the result.
 
 Enabling that exchange is account and tenant configuration, not code: an account-level federation
 policy trusting the issuer and audience, and an Entra app registration that emits what the policy
 expects — `preferred_username` as an optional access-token claim, `requestedAccessTokenVersion` 2,
-and a scope the front end can request on the user's behalf. Get it right and the front end holds an
-ordinary Databricks user token.
+and a scope it can request on the user's behalf.
 
 > [!WARNING]
 > Below `mlflow` 2.22.1 OBO is off by default and the agent answers as the endpoint. A
@@ -287,7 +287,7 @@ you put alongside the chunks, and adding one later means a rebuild.
 that both return zero rows. Give each one its own signal, so you can tell from the answer which
 one you are looking at.
 
-**Check the access rights on your backup paths.** On any non-interactive path every caller
+**Check what the service principal is granted.** On any non-interactive path every caller
 retrieves what the service principal may read.
 
 Which path you land on follows from two questions — whether the content is structured, and whether

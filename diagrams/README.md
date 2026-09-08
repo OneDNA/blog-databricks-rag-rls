@@ -96,7 +96,7 @@ so the RFC 8693 exchange is drawn with **App Registrations** — which is more a
 an app registration is exactly what the federation policy trusts. And the front-end box is labelled
 "Front end · web UI, Teams, …" but still drawn with the Teams mark, because a recognisable product
 reads faster than a generic client glyph. Teams is only an example of what sits there: a custom web
-UI takes the same position and needs the same Entra token federation to get a Databricks token.
+UI takes the same position and needs the same token federation to get a Databricks token.
 
 The Databricks artwork comes from the community-maintained
 [databricks-architecture-icons](https://github.com/oieduardorabelo/databricks-architecture-icons)

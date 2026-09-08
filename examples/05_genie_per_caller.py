@@ -9,7 +9,7 @@ Two things are worth taking from this file.
 
 THE GOOD NEWS: Unity Catalog resolves row filters and column masks against the CALLER, on every
 path we could construct -- interactive, agent-under-OBO, and an external front end (three hops, via
-Entra token federation). Query history attributes the statement to the human, not to the serving
+token federation). Query history attributes the statement to the human, not to the serving
 endpoint's service principal.
 
 THE PROBLEM: on a non-interactive path the service principal IS the evaluated identity. Correctly

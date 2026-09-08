@@ -171,8 +171,9 @@ which host it is on and that stays a configuration change.
 
 In front of either host sits whatever the user opens — a custom web UI, something like Microsoft
 Teams — and none of those are Databricks, so none of them can hold a Databricks token. They all
-need **Entra token federation**. Signing the user in with Entra yields an Entra token, which
-Databricks rejects on workspace APIs, so the front end exchanges it at `/oidc/v1/token` (RFC 8693)
+need **token federation**. Signing the user in with Entra yields an Entra token, which
+Databricks rejects on workspace APIs, so its server-side code exchanges that token at
+`/oidc/v1/token` (RFC 8693)
 and calls the endpoint with the result. Enabling that exchange is account and tenant configuration:
 a federation policy trusting the issuer and audience, plus an Entra app registration emitting
 `preferred_username` as an optional access-token claim, `requestedAccessTokenVersion` 2, and a
@@ -249,7 +250,7 @@ you put alongside the chunks, and adding one later means a rebuild.
 that both return zero rows. Give each one its own signal, so you can tell from the answer which
 one you are looking at.
 
-**Check the access rights on your backup paths.** On any non-interactive path every caller
+**Check what the service principal is granted.** On any non-interactive path every caller
 retrieves what the service principal may read, whatever row-level security is switched on.
 
 Which path you land on follows from two questions — whether the content is structured, and whether

@@ -18,7 +18,7 @@ project, let alone to projects outside their access level.
 
 We built such a system on Databricks: a RAG chain over a governed corpus, reachable from
 applications outside Databricks — a custom web interface like OpenWebUI, or a client such as
-Microsoft Teams, once Entra token federation is enabled — with access control per user. RAG on the
+Microsoft Teams, once token federation is enabled — with access control per user. RAG on the
 native AI Search (formerly Vector Search) has no feature for row-level security, so we built it
 ourselves. The starting point was [Mastering RAG Chatbot Security: ACL and Metadata Filtering with
 Mosaic AI Vector
@@ -356,15 +356,14 @@ model.
 
 In front of either host sits whatever the user opens: a custom web UI, something like Microsoft
 Teams, any client that is not Databricks. None of them can hold a Databricks token, so they all
-need the same thing — **Entra token federation**.
+need the same thing — **token federation**.
 
 Signing the user in with Entra gets you an Entra token, which Databricks rejects on workspace
-APIs. The front end exchanges it at `/oidc/v1/token` (RFC 8693) and calls the endpoint with the
-result. Enabling that exchange is account and tenant configuration rather than code: an
-account-level federation policy trusting the issuer and audience, and an Entra app registration
-that emits what the policy expects — `preferred_username` as an optional access-token claim,
-`requestedAccessTokenVersion` 2, and a scope the front end can request on the user's behalf. Get
-it right and the front end holds an ordinary Databricks user token.
+APIs. Its server-side code exchanges that token at `/oidc/v1/token` (RFC 8693) and calls the
+endpoint with the result. Enabling the exchange is account and tenant configuration rather than
+code: an account-level federation policy trusting the issuer and audience, and an Entra app
+registration that emits what the policy expects — `preferred_username` as an optional access-token
+claim, `requestedAccessTokenVersion` 2, and a scope it can request on the user's behalf.
 
 Each hop passes one token, and drops the identity if it does not:
 
@@ -558,7 +557,7 @@ you put alongside the chunks, and adding one later means a rebuild.
 that both return zero rows. Give each one its own signal, so you can tell from the answer which
 one you are looking at.
 
-**Check the access rights on your backup paths.** On any non-interactive path every caller
+**Check what the service principal is granted.** On any non-interactive path every caller
 retrieves what the service principal may read, whatever row-level security is switched on.
 
 Which path you land on follows from two questions — whether the content is structured, and whether

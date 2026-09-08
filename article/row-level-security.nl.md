@@ -18,7 +18,7 @@ te kunnen, laat staan bij projecten buiten zijn eigen toegangsniveau.
 
 Zo'n systeem hebben we op Databricks gebouwd: een RAG-keten over een beheerd corpus, bereikbaar
 vanuit applicaties buiten Databricks — een eigen webinterface zoals OpenWebUI, of een client als
-Microsoft Teams zodra Entra-tokenfederatie aanstaat — met toegangscontrole per gebruiker. RAG op de
+Microsoft Teams zodra tokenfederatie aanstaat — met toegangscontrole per gebruiker. RAG op de
 native AI Search (voorheen Vector Search) heeft geen voorziening voor row-level security, dus
 hebben we het zelf gebouwd. Het vertrekpunt was [Mastering RAG Chatbot Security: ACL and Metadata
 Filtering with Mosaic AI Vector
@@ -373,16 +373,15 @@ Apps met de keten als model geversioneerd.
 
 Vóór beide hosts staat wat de gebruiker opent: een eigen web-UI, iets als Microsoft Teams, elke
 client die geen Databricks is. Geen ervan kan een Databricks-token vasthouden, dus ze hebben alle
-hetzelfde nodig — **Entra-tokenfederatie**.
+hetzelfde nodig — **tokenfederatie**.
 
 De gebruiker aanmelden met Entra levert een Entra-token op, dat Databricks op workspace-API's
-weigert. De front end wisselt het in bij `/oidc/v1/token` (RFC 8693) en roept het endpoint aan met
-het resultaat. Die exchange aanzetten is configuratie op account- en tenantniveau, geen code: een
-federation policy op accountniveau die de issuer en audience vertrouwt, en een Entra
+weigert. De servercode erachter wisselt dat token in bij `/oidc/v1/token` (RFC 8693) en roept het
+endpoint aan met het resultaat. Die exchange aanzetten is configuratie op account- en tenantniveau,
+geen code: een federation policy op accountniveau die de issuer en audience vertrouwt, en een Entra
 app-registratie die uitstuurt wat die policy verwacht — `preferred_username` als optionele
 access-token-claim, `requestedAccessTokenVersion` 2, en een scope die de front end namens de
-gebruiker kan opvragen. Staat dat goed, dan heeft de front end een gewoon
-Databricks-gebruikerstoken.
+gebruiker kan opvragen.
 
 Elke hop geeft één token door, en laat de identiteit vallen als hij dat niet doet:
 
@@ -580,7 +579,7 @@ metadata die je naast de chunks hebt weggeschreven, en er later een toevoegen be
 die beide nul rijen opleveren. Geef elk een eigen signaal, zodat je aan het antwoord kunt zien met
 welke van de twee je te maken hebt.
 
-**Controleer de toegangsrechten op je achterliggende paden.** Op elk niet-interactief pad haalt
+**Controleer wat de service principal mag lezen.** Op elk niet-interactief pad haalt
 iedere aanroeper op wat de service principal mag lezen, wat er ook aan row-level security aanstaat.
 
 Welk pad je krijgt volgt uit twee vragen — of de content gestructureerd is, en of je ACL past op de
