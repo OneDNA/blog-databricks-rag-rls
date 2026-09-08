@@ -126,23 +126,6 @@ chunk body does.
 > does, query it with a filter naming a column that does not exist and see whether you get rows,
 > zero rows or an error.
 
-We assert every filter's keys against the columns the index actually has, before the query goes
-out, and raise rather than warn:
-
-```python
-def assert_enforceable(filters: dict[str, Any]) -> None:
-    unenforceable = sorted(set(filters) - set(ACL_FILTER_COLUMNS))
-    if unenforceable:
-        raise PermissionError(
-            f"filter columns {unenforceable} are not columns of the index source "
-            f"{list(ACL_FILTER_COLUMNS)}, so the request cannot be filtered as intended."
-        )
-```
-
-It lives in the ACL layer rather than the retriever, so every backend inherits it. Both backends
-reject an unknown column on their own today, but a rule that only holds on one backend, or on one
-month's behaviour, is not much of a rule.
-
 ## Resolving the caller
 
 The filter value has to come from the person asking. That means one call, with the caller's own
@@ -189,6 +172,23 @@ decides what a routine failure grants. Against real workspace group names, a rul
 entitlement out of any group whose name contained a known token turned an administration group into
 a claim on a source system.
 
+Those filter values are only worth anything if the index can apply them. So before the query goes
+out, we assert every key against the columns the index actually has, and raise rather than warn:
+
+```python
+def assert_enforceable(filters: dict[str, Any]) -> None:
+    unenforceable = sorted(set(filters) - set(ACL_FILTER_COLUMNS))
+    if unenforceable:
+        raise PermissionError(
+            f"filter columns {unenforceable} are not columns of the index source "
+            f"{list(ACL_FILTER_COLUMNS)}, so the request cannot be filtered as intended."
+        )
+```
+
+It lives in the ACL layer rather than the retriever, so every backend inherits it. Both backends
+reject an unknown column on their own today, but a rule that only holds on one backend, or on one
+month's behaviour, is not much of a rule.
+
 ## Making sure the agent knows who is asking
 
 All of that assumes the caller's identity reaches Unity Catalog rather than the deployer's.
@@ -221,9 +221,8 @@ and a scope it can request on the user's behalf.
 > `databricks-ai-bridge` missing from the *logged* requirements, rather than just the environment,
 > drops the agent back to its own identity.
 
-To test, you need to assert on the identity that produced the answer, not on whether an answer
-arrived. A test that checks for a response passes identically whether every caller is being served
-their own permissions or the deployer's.
+Both failures are silent, which is why a test that only checks for a response tells you nothing: it
+passes identically whether every caller is being served their own permissions or the deployer's.
 
 ## The results
 
@@ -300,8 +299,9 @@ your ACL fits the columns you can get into the index:
 
 Then test each control against a case where it has to deny. Point the filter at a value no row has
 and check it returns nothing. Revoke the grant and check the answer disappears. Set the group to
-one nobody is in and check the row count goes to zero. A control you have only seen succeed is a
-control you have not tested.
+one nobody is in and check the row count goes to zero. Assert on the identity that produced each
+answer, not on whether an answer arrived. A control you have only seen succeed is a control you
+have not tested.
 
 > [!NOTE]
 > **There is another way to do this.** Serve the vectors from pgvector on Lakebase instead of AI
