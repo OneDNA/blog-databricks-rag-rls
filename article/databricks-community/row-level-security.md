@@ -65,6 +65,11 @@ A second caveat: metadata **is** content. If you index `created_by_email` or `we
 > **A filter naming a column the index does not have is ignored.** No error, no warning — it stops constraining, and the query still returns a plausible row count and a well-sourced answer.
 > Rename a column upstream, rebuild without a field, or typo it, and the caller receives every sensitivity label in the corpus.
 
+> [!NOTE]
+> **Update, September 2026.** Re-running the probe against a fresh index, AI Search now *rejects* an unknown filter column — `BadRequest: Columns referenced in filters are not present in index: sensitivty` — rather than ignoring it. The control probes were unchanged (three rows unfiltered, two on a real column, zero on a real column with no matching value), so filtering was live and this is the platform validating filter keys against the index contract. Measured on one AWS workspace, `STANDARD` endpoint, `HYBRID` index subtype; I have not established whether it holds everywhere.
+>
+> This is better behaviour, and it arrived without a release note. Keep the assertion below anyway: the behaviour moved once and can move again; a column that exists in the source but was never synced into the index is a different and likelier mistake; and a refusal at query time is a 500 to your caller, where the assertion is a clean `PermissionError` before the request leaves. If you have measured different behaviour on your own endpoint type or cloud, I would like to hear about it.
+
 That last one is why we assert every filter's keys against the columns the index actually has, before the query goes out, and raise rather than warn:
 
 ```python

@@ -103,6 +103,15 @@ niet alleen vóór de chunktekst.
 > waarschuwing — het beperkt gewoon niets meer, en de query geeft nog steeds een plausibel aantal
 > rijen. Daarom toetsen we elke filtersleutel aan de kolommen die de index echt heeft.
 
+> [!NOTE]
+> **September 2026:** bij hermeting *weigert* AI Search dat filter nu — `Columns referenced in
+> filters are not present in index` — in plaats van het te negeren. Veiliger, en het kwam zonder
+> release note. Houd de toets toch: een regel die afhangt van welke kant het platform het laatst
+> op bewoog, is geen regel, en een weigering tijdens de query is een 500 voor je aanroeper waar de
+> toets een nette `PermissionError` geeft. Meet welk gedrag jouw index heeft —
+> [`01_index_has_no_rls.py --live`](../../examples/01_index_has_no_rls.py) rapporteert alle drie
+> de uitkomsten.
+
 ## De ACL bouwen: vier beslissingen
 
 De ACL wordt per request opgelost uit het token van de aanroeper zelf, met groepen uit SCIM met zijn

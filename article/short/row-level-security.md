@@ -99,6 +99,15 @@ chunk body does.
 > stops constraining, and the query still returns a plausible row count. So we assert every
 > filter's keys against the columns the index actually has, and raise rather than warn.
 
+> [!NOTE]
+> **September 2026:** re-measuring, AI Search now *refuses* that filter — `Columns referenced in
+> filters are not present in index` — instead of ignoring it. Safer, and it arrived without a
+> release note. Keep the assertion: a rule whose correctness depends on which way the platform
+> last moved is not a rule, and a query-time refusal is a 500 to your caller where the assertion
+> is a clean `PermissionError`. Verify which behaviour your own index has —
+> [`01_index_has_no_rls.py --live`](../../examples/01_index_has_no_rls.py) reports all three
+> outcomes.
+
 ## Building the ACL: four decisions
 
 The ACL resolves per request from the caller's own token, with groups from SCIM using their

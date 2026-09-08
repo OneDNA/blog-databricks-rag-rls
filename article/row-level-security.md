@@ -162,8 +162,9 @@ def assert_enforceable(filters: dict[str, Any]) -> None:
 ```
 
 It raises rather than warns, and it lives in the ACL layer rather than the retriever so every
-backend inherits it. pgvector would reject an unknown column on its own; AI Search will not, and a
-rule that only holds on one backend is not much of a rule.
+backend inherits it. pgvector would reject an unknown column on its own; AI Search did not when
+this was measured — see the note below, because that has since changed — and a rule that only
+holds on one backend, or on one month's behaviour, is not much of a rule.
 
 > [!WARNING]
 > **A filter naming a column the index does not have is ignored.** It does not raise and it does
@@ -172,6 +173,40 @@ rule that only holds on one backend is not much of a rule.
 > answer. The caller receives every sensitivity label in the corpus. This is why the guard above
 > asserts against the index contract instead of trusting the filter, and why a filter that must
 > return nothing is worth running on every deploy.
+
+> [!NOTE]
+> **Update, September 2026 — this has changed, and the change makes the point better than the
+> original finding did.** Re-running `01_index_has_no_rls.py --live` against a fresh index no
+> longer reproduces the silent widening. The typo'd column now comes back as a hard error:
+>
+> ```
+> BadRequest: Columns referenced in filters are not present in index: sensitivty
+> ```
+>
+> The predicate is refused instead of dropped. The three control probes were unchanged — three
+> rows unfiltered, two on a real column, zero on a real column with no matching value — so
+> filtering was live and the rejection is the platform validating filter keys against the index
+> contract, which is what the guard above had to do by hand.
+>
+> Measured on one AWS workspace, `STANDARD` endpoint, `HYBRID` index subtype. Whether it holds
+> across endpoint types, clouds and regions, I have not established.
+>
+> Keep the guard. Three reasons it still earns its place, and the first is the important one:
+>
+> 1. **The behaviour moved without a release note.** It moved toward safety this time. A rule
+>    whose correctness depends on which way the platform last moved is not a rule — which is the
+>    same argument this section already makes about pgvector, now with the platform itself as the
+>    example rather than a second backend.
+> 2. **A synced-but-absent column is a different case.** This tests a column that exists *nowhere*.
+>    A column that exists in the source table but was never synced into the index need not refuse
+>    as loudly, and that is the likelier production mistake.
+> 3. **Refusing at query time is a 500 to your caller.** The guard converts the same mistake into
+>    a `PermissionError` before the request leaves, which is the difference between a refused query
+>    and a broken endpoint.
+>
+> The honest summary: the specific failure this section is built on is, for now, fixed on the
+> backend I measured. The reasoning survives it, and you should verify which behaviour your own
+> index has rather than trusting either version of this paragraph.
 
 ## Building the ACL: four decisions
 
@@ -530,10 +565,15 @@ policy that the database evaluates, which puts enforcement back on the platform 
 this article has been drawing. For us that is a governance argument rather than a latency one.
 
 It does not come free of the same class of mistake. Our `sensitivity` filter named a column no
-stage ever produced: on AI Search that is ignored, and a caller restricted to `internal` quietly
+stage ever produced: on AI Search that was ignored, and a caller restricted to `internal` quietly
 received `confidential` rows. On pgvector the same filter is a hard "column does not exist" — it
 gives notice, and it is equally broken. A rule that only holds on the backend that gives notice is
 not a rule. What changes is that you find out.
+
+Re-measuring in September 2026 sharpened this rather than settling it: AI Search now refuses that
+filter too, so both backends give notice — and the filter is still equally broken on both. The
+platform moved, in the safe direction, without telling anyone. That is the argument for owning the
+check, not evidence that you can stop.
 
 ## Recommendations
 
