@@ -285,12 +285,13 @@ and check it returns nothing. Revoke the grant and check the answer disappears. 
 one nobody is in and check the row count goes to zero. A control you have only seen succeed is a
 control you have not tested.
 
-There is another way to do this: serve the vectors from pgvector on Lakebase instead of AI Search.
-The ACL goes back to being a row-level security policy the database evaluates, which puts
-enforcement on the platform side of the governance boundary. It does not escape the same class of
-mistake — our `sensitivity` filter once named a column no stage produced, and on pgvector that is a
-hard "column does not exist", as it now is on AI Search. The filter is equally broken either way;
-what you get is notice.
+> [!NOTE]
+> **There is another way to do this.** Serve the vectors from pgvector on Lakebase instead of AI
+> Search, and the ACL goes back to being a row-level security policy the database evaluates, which
+> puts enforcement on the platform side of the governance boundary. It does not escape the same
+> class of mistake — our `sensitivity` filter once named a column no stage produced, and on
+> pgvector that is a hard "column does not exist", as it now is on AI Search. The filter is equally
+> broken either way; what you get is notice.
 
 ---
 

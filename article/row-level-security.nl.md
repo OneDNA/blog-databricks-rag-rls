@@ -564,18 +564,18 @@ Een personal access token zet hem ook niet, en de ingebouwde `databricks-cli` cl
 dus een agent die hem gebruikt is niet te onderscheiden van een mens achter een terminal. Registreer
 je eigen OAuth-applicatie als je een specifieke wilt governen.
 
-Er is een derde optie, en die is vandaag al beschikbaar in plaats van Beta: serveer de vectoren uit
-pgvector op Lakebase in plaats van uit AI Search. De ACL wordt dan weer een row-level
-security-policy die de database evalueert, waarmee de handhaving terugkomt aan de platformkant van
-de governance-grens. Voor ons is dat een governance-argument en geen
-latency-argument.
-
-Diezelfde klasse fouten verdwijnt er niet mee. Ons `sensitivity`-filter noemde een kolom die geen
-enkele stap ooit produceerde, en op pgvector is dat een harde "kolom bestaat niet". Beide backends
-weigeren het vandaag en het filter is op beide even kapot — wat je in beide gevallen krijgt, is een
-signaal. AI Search kwam daar door te bewegen, de veilige kant
-op, zonder het te melden. Dat is het argument om de check zelf te bezitten, geen bewijs dat je
-ermee kunt stoppen.
+> [!NOTE]
+> **Er is een derde optie, en die is vandaag al beschikbaar in plaats van Beta.** Serveer de
+> vectoren uit pgvector op Lakebase in plaats van uit AI Search, en de ACL wordt weer een
+> row-level security-policy die de database evalueert, waarmee de handhaving terugkomt aan de
+> platformkant van de governance-grens. Voor ons is dat een governance-argument en geen
+> latency-argument.
+>
+> Diezelfde klasse fouten verdwijnt er niet mee. Ons `sensitivity`-filter noemde een kolom die geen
+> enkele stap ooit produceerde, en op pgvector is dat een harde "kolom bestaat niet". Beide
+> backends weigeren het vandaag en het filter is op beide even kapot — wat je in beide gevallen
+> krijgt, is een signaal. AI Search kwam daar door te bewegen, de veilige kant op, zonder het te
+> melden. Dat is het argument om de check zelf te bezitten, geen bewijs dat je ermee kunt stoppen.
 
 ## Aanbevelingen
 

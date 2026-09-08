@@ -542,16 +542,17 @@ On identity attributes, mind the polarity of the condition. The functions return
 the user has no value and when the key does not exist, so write the condition such that `false`
 restricts. The other way round, every user your SCIM sync has not populated sees the data unmasked.
 
-There is a third option, and it is available today rather than in Beta: serve the vectors from
-pgvector on Lakebase instead of AI Search. The ACL then goes back to being a row-level security
-policy that the database evaluates, which puts enforcement back on the platform side of the
-governance boundary. For us that is a governance argument rather than a latency one.
-
-It does not escape the same class of mistake. Our `sensitivity` filter named a column no stage ever
-produced, and on pgvector that is a hard "column does not exist". Both backends refuse it today and
-the filter is equally broken on both — what you get either way is notice. AI Search only reached
-that behaviour by moving, in the safe direction, without telling anyone. That is the argument for
-owning the check, not evidence that you can stop.
+> [!NOTE]
+> **There is a third option, and it is available today rather than in Beta.** Serve the vectors
+> from pgvector on Lakebase instead of AI Search, and the ACL goes back to being a row-level
+> security policy that the database evaluates, which puts enforcement back on the platform side of
+> the governance boundary. For us that is a governance argument rather than a latency one.
+>
+> It does not escape the same class of mistake. Our `sensitivity` filter named a column no stage
+> ever produced, and on pgvector that is a hard "column does not exist". Both backends refuse it
+> today and the filter is equally broken on both — what you get either way is notice. AI Search
+> only reached that behaviour by moving, in the safe direction, without telling anyone. That is the
+> argument for owning the check, not evidence that you can stop.
 
 ## Recommendations
 
