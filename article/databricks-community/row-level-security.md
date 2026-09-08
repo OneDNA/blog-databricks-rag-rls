@@ -157,8 +157,8 @@ Ask *what went wrong on Water Delta, and what did we learn* and the question is 
 Both of David's answers are empty, and while the answers look identical, they are slightly different in mechanism. On the Genie path the platform decided, and it would have decided the same way for any caller on any client. On the AI Search path *our filter* decided — and had we passed no filter, or one naming a
 column the index does not have, he would have received Water Delta chunks with no error and no warning.
 
-`obo_active` reads `true` in all four metadata boxes, which is what makes either zero readable.
-Without it a zero could mean "correctly filtered" or "identity broken", and the two are
+`obo_active` reads `true` in all four metadata boxes. That flag is what makes either zero readable:
+without it a zero could mean "correctly filtered" or "identity broken", and the two are
 indistinguishable from the answer alone. The same holds across hops: query history attributes the
 statement to the human on the interactive path, through the agent under OBO, and from an external
 front end, which adds a third hop through Entra and the token exchange. In each case

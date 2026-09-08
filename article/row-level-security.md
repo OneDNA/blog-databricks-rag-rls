@@ -187,7 +187,7 @@ holds on one backend, or on one month's behaviour, is not much of a rule.
 > The predicate is refused instead of dropped. The three control probes were unchanged — three
 > rows unfiltered, two on a real column, zero on a real column with no matching value — so
 > filtering was live and the rejection is the platform validating filter keys against the index
-> contract, which is what the guard above had to do by hand.
+> contract — the job the guard above does by hand.
 >
 > Measured on one AWS workspace, `STANDARD` endpoint, `HYBRID` index subtype. Whether it holds
 > across endpoint types, clouds and regions, I have not established.
@@ -434,8 +434,8 @@ Both of David's answers are empty, and while the answers look identical, they ar
 in mechanism. On the Genie path the platform decided. On the index path our filter decided — and had
 we passed no filter, or one naming
 a column the index does not have, he would have received Water Delta chunks with no error and no
-warning. `obo_active` reads `true` in all four metadata boxes, which is what makes either zero
-readable.
+warning. `obo_active` reads `true` in all four metadata boxes, and that flag is what makes either
+zero readable.
 
 None of that is worth much on the strength of a code review, so we measured it. A controlled
 experiment against the deployed endpoint: same user, same question, same registered model version,
