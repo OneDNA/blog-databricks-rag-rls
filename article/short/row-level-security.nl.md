@@ -295,5 +295,4 @@ Databricks. Neem contact op via [onedna.nl](https://onedna.nl) of
 ---
 
 <sub>Geschreven door Sven Relijveld bij [OneDNA](https://onedna.nl). Kennisdelen zit in ons DNA.
-Gemeten in een Databricks-sandbox in augustus en september 2026; identifiers en groepsnamen zijn
-voor publicatie gegeneraliseerd.</sub>
+Identifiers en groepsnamen zijn voor publicatie gegeneraliseerd.</sub>

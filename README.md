@@ -40,6 +40,5 @@ python examples/03_acl_from_groups.py
 
 Written by Sven Relijveld at [OneDNA](https://onedna.nl). Sharing knowledge is in our DNA.
 
-Measured in a Databricks sandbox during August and September 2026. Identifiers, group names and
-project data are generalised for publication. Licensed [MIT](LICENSE) — lift anything here into
-your own work.
+Identifiers, group names and project data are generalised for publication. Licensed
+[MIT](LICENSE) — lift anything here into your own work.

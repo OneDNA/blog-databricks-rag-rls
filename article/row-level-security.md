@@ -605,5 +605,4 @@ Databricks. Get in touch via [onedna.nl](https://onedna.nl) or
 ---
 
 <sub>Written by Sven Relijveld at [OneDNA](https://onedna.nl). Sharing knowledge is in our DNA.
-Measured in a Databricks sandbox during August and September 2026; identifiers and group names
-generalised for publication.</sub>
+Identifiers and group names generalised for publication.</sub>

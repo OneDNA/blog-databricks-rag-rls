@@ -295,7 +295,7 @@ what you get is notice.
 ---
 
 *Written by Sven Relijveld at [OneDNA](https://onedna.nl), a Databricks partner in the Netherlands.
-Measured in a Databricks sandbox during August and September 2026; identifiers, group names and
-project data are generalised for publication. You can test this out yourself by looking at the
-[demo repo](https://github.com/OneDNA/blog-databricks-rag-rls), which has a runnable demonstration
-of each failure above, including a Unity Catalog row-filter fixture with its negative cases.*
+Identifiers, group names and project data are generalised for publication. You can test this out
+yourself by looking at the [demo repo](https://github.com/OneDNA/blog-databricks-rag-rls), which has
+a runnable demonstration of each failure above, including a Unity Catalog row-filter fixture with
+its negative cases.*
